@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { OptimizationCard, type Suggestion } from './OptimizationCard';
 
 // Educational Comment: Defining the shape of our data ensures type safety throughout the component.
 interface LedgerEntry {
@@ -16,22 +17,34 @@ export function LedgerView() {
     // Educational Comment: useState is a Hook that lets you add React state to function components.
     // Here we store the ledger data and a loading state.
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
+    const [optimizations, setOptimizations] = useState<Suggestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Educational Comment: useEffect is a Hook that lets you perform side effects in function components.
     // The empty dependency array [] means this effect runs once after the initial render (like componentDidMount).
     useEffect(() => {
-        const fetchLedger = async () => {
+        const fetchData = async () => {
             try {
-                // Educational Comment: We're making an asynchronous network request to fetch data.
-                const response = await fetch('/api/ledger');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch ledger data');
-                }
-                const data = await response.json();
+                // Educational Comment: We're making parallel asynchronous network requests to fetch data.
+                // Promise.all allows us to wait for both requests to complete.
+                const [ledgerRes, optimizationsRes] = await Promise.all([
+                    fetch('/api/ledger'),
+                    fetch('/api/ledger/optimizations')
+                ]);
+
+                if (!ledgerRes.ok) throw new Error('Failed to fetch ledger data');
+                // Note: We might want to handle optimization fetch failure gracefully without blocking the ledger view,
+                // but for now we'll treat it as a general error or just log it if we wanted to be more robust.
+                // Here we assume if one fails, we show the error.
+                if (!optimizationsRes.ok) throw new Error('Failed to fetch optimizations');
+
+                const ledgerData = await ledgerRes.json();
+                const optimizationsData = await optimizationsRes.json();
+
                 // Educational Comment: Updating state triggers a re-render of the component with the new data.
-                setEntries(data);
+                setEntries(ledgerData);
+                setOptimizations(optimizationsData);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'An unknown error occurred');
             } finally {
@@ -40,8 +53,29 @@ export function LedgerView() {
             }
         };
 
-        fetchLedger();
+        fetchData();
     }, []);
+
+    // Educational Comment: This function handles the optimistic UI update pattern.
+    // We update the local state immediately to reflect the change, while the API call happens.
+    // In this specific case, we wait for the API call to succeed before updating the status to 'applied'.
+    const handleApplyOptimization = async (id: string) => {
+        const response = await fetch(`/api/ledger/optimizations/${id}/apply`, {
+            method: 'POST',
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to apply optimization');
+        }
+
+        // Update the local state to reflect the applied status
+        setOptimizations(prev => prev.map(opt =>
+            opt.id === id ? { ...opt, status: 'applied' } : opt
+        ));
+
+        // Optionally refetch ledger to show updated costs/entries if the optimization affects past entries immediately
+        // or just to ensure consistency. For this requirement, updating the card status is the primary visual feedback.
+    };
 
     if (loading) {
         return <div className="p-8 text-white">Loading ledger data...</div>;
@@ -54,6 +88,22 @@ export function LedgerView() {
     return (
         <div className="p-8 h-full overflow-auto">
             <h2 className="text-2xl font-bold mb-6 text-white">Token Ledger</h2>
+
+            {/* Optimization Suggestions Section */}
+            <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-4 text-white">Optimizations</h3>
+                {optimizations.length > 0 ? (
+                    optimizations.map(opt => (
+                        <OptimizationCard
+                            key={opt.id}
+                            suggestion={opt}
+                            onApply={handleApplyOptimization}
+                        />
+                    ))
+                ) : (
+                    <div className="text-gray-500 italic">No optimization suggestions yet</div>
+                )}
+            </div>
 
             <div className="bg-gray-900/50 rounded-lg border border-white/10 overflow-hidden">
                 <table className="w-full text-left text-sm text-gray-400" data-testid="ledger-table">
