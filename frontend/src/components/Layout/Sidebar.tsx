@@ -4,8 +4,8 @@ import { cn } from '../../lib/utils';
 
 // Educational Comment: Defining props interface for type safety and clarity on what data the component needs.
 interface SidebarProps {
-    currentView: 'architect' | 'ledger';
-    onViewChange: (view: 'architect' | 'ledger') => void;
+    currentView: 'architect' | 'ledger' | 'commands';
+    onViewChange: (view: 'architect' | 'ledger' | 'commands') => void;
 }
 
 export function Sidebar({ currentView, onViewChange }: SidebarProps) {
@@ -14,7 +14,7 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
     const navItems = [
         { icon: BrainCircuit, label: 'Architect', view: 'architect' as const },
         { icon: LayoutDashboard, label: 'Dashboard', view: 'ledger' as const },
-        { icon: GitGraph, label: 'Flows', view: 'ledger' as const }, // Mapping Flows to ledger for now as per instructions
+        { icon: GitGraph, label: 'Flows', view: 'commands' as const }, // Educational Comment: Mapping Flows to commands view as per contract
         { icon: Settings, label: 'Settings', view: 'architect' as const }, // Placeholder
     ];
 
@@ -56,14 +56,14 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
                                 }}
                                 className={cn(
                                     "flex items-center w-full px-4 py-3 rounded-lg transition-colors group text-left",
-                                    currentView === item.view && (item.label === 'Architect' || item.label === 'Dashboard') // Simple active check
+                                    currentView === item.view
                                         ? "bg-white/10 text-white"
                                         : "text-gray-300 hover:bg-white/5 hover:text-white"
                                 )}
                             >
                                 <item.icon className={cn(
                                     "w-5 h-5 mr-3 transition-colors",
-                                    currentView === item.view && (item.label === 'Architect' || item.label === 'Dashboard')
+                                    currentView === item.view
                                         ? "text-blue-400"
                                         : "group-hover:text-blue-400"
                                 )} />
