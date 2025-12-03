@@ -27,10 +27,7 @@ export function OptimizationCard({ suggestion, onApply }: OptimizationCardProps)
             // Educational Comment: We await the parent's onApply handler.
             // This allows the parent to manage the actual data update and API call.
             await onApply(suggestion.id);
-            // Note: We don't set isApplying(false) here if successful, because the parent
-            // will likely update the suggestion prop to 'applied', which disables the button.
-            // However, strictly speaking, we might want to reset it if the parent doesn't unmount us.
-            // In this case, the button becomes disabled/changed based on the new 'status' prop.
+            setIsApplying(false);
         } catch (err) {
             setError('Failed to apply');
             setIsApplying(false);
@@ -56,8 +53,8 @@ export function OptimizationCard({ suggestion, onApply }: OptimizationCardProps)
                 onClick={handleApply}
                 disabled={isApplied || isApplying}
                 className={`px-4 py-2 rounded text-sm font-medium transition-colors ${isApplied
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/20 cursor-default'
-                        : 'bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/20 cursor-default'
+                    : 'bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
                 data-testid="apply-btn"
             >
