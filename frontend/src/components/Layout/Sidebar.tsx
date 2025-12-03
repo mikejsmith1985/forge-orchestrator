@@ -1,15 +1,22 @@
 import { useState } from 'react';
-import { LayoutDashboard, GitGraph, Settings, Menu, X } from 'lucide-react';
+import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '#' },
-    { icon: GitGraph, label: 'Flows', href: '#' },
-    { icon: Settings, label: 'Settings', href: '#' },
-];
+// Educational Comment: Defining props interface for type safety and clarity on what data the component needs.
+interface SidebarProps {
+    currentView: 'architect' | 'ledger';
+    onViewChange: (view: 'architect' | 'ledger') => void;
+}
 
-export function Sidebar() {
+export function Sidebar({ currentView, onViewChange }: SidebarProps) {
     const [isOpen, setIsOpen] = useState(false);
+
+    const navItems = [
+        { icon: BrainCircuit, label: 'Architect', view: 'architect' as const },
+        { icon: LayoutDashboard, label: 'Dashboard', view: 'ledger' as const },
+        { icon: GitGraph, label: 'Flows', view: 'ledger' as const }, // Mapping Flows to ledger for now as per instructions
+        { icon: Settings, label: 'Settings', view: 'architect' as const }, // Placeholder
+    ];
 
     return (
         <>
@@ -41,14 +48,27 @@ export function Sidebar() {
                     {/* Navigation */}
                     <nav className="flex-1 px-4 py-6 space-y-2">
                         {navItems.map((item) => (
-                            <a
+                            <button
                                 key={item.label}
-                                href={item.href}
-                                className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-white/5 hover:text-white transition-colors group"
+                                onClick={() => {
+                                    onViewChange(item.view);
+                                    setIsOpen(false);
+                                }}
+                                className={cn(
+                                    "flex items-center w-full px-4 py-3 rounded-lg transition-colors group text-left",
+                                    currentView === item.view && (item.label === 'Architect' || item.label === 'Dashboard') // Simple active check
+                                        ? "bg-white/10 text-white"
+                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                )}
                             >
-                                <item.icon className="w-5 h-5 mr-3 group-hover:text-blue-400 transition-colors" />
+                                <item.icon className={cn(
+                                    "w-5 h-5 mr-3 transition-colors",
+                                    currentView === item.view && (item.label === 'Architect' || item.label === 'Dashboard')
+                                        ? "text-blue-400"
+                                        : "group-hover:text-blue-400"
+                                )} />
                                 <span className="font-medium">{item.label}</span>
-                            </a>
+                            </button>
                         ))}
                     </nav>
 

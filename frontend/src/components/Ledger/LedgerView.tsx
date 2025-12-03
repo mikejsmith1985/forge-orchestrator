@@ -1,0 +1,110 @@
+import React, { useState, useEffect } from 'react';
+
+// Educational Comment: Defining the shape of our data ensures type safety throughout the component.
+interface LedgerEntry {
+    id: string;
+    timestamp: string;
+    flowId: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    cost: number;
+    status: 'success' | 'failed' | 'pending';
+}
+
+export function LedgerView() {
+    // Educational Comment: useState is a Hook that lets you add React state to function components.
+    // Here we store the ledger data and a loading state.
+    const [entries, setEntries] = useState<LedgerEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Educational Comment: useEffect is a Hook that lets you perform side effects in function components.
+    // The empty dependency array [] means this effect runs once after the initial render (like componentDidMount).
+    useEffect(() => {
+        const fetchLedger = async () => {
+            try {
+                // Educational Comment: We're making an asynchronous network request to fetch data.
+                const response = await fetch('/api/ledger');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch ledger data');
+                }
+                const data = await response.json();
+                // Educational Comment: Updating state triggers a re-render of the component with the new data.
+                setEntries(data);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'An unknown error occurred');
+            } finally {
+                // Educational Comment: This runs whether the request succeeds or fails, ensuring loading state is turned off.
+                setLoading(false);
+            }
+        };
+
+        fetchLedger();
+    }, []);
+
+    if (loading) {
+        return <div className="p-8 text-white">Loading ledger data...</div>;
+    }
+
+    if (error) {
+        return <div className="p-8 text-red-400">Error: {error}</div>;
+    }
+
+    return (
+        <div className="p-8 h-full overflow-auto">
+            <h2 className="text-2xl font-bold mb-6 text-white">Token Ledger</h2>
+
+            <div className="bg-gray-900/50 rounded-lg border border-white/10 overflow-hidden">
+                <table className="w-full text-left text-sm text-gray-400" data-testid="ledger-table">
+                    <thead className="bg-white/5 text-gray-200 uppercase font-medium">
+                        <tr>
+                            <th className="px-6 py-4">Timestamp</th>
+                            <th className="px-6 py-4">Flow ID</th>
+                            <th className="px-6 py-4">Model</th>
+                            <th className="px-6 py-4 text-right">Input Tokens</th>
+                            <th className="px-6 py-4 text-right">Output Tokens</th>
+                            <th className="px-6 py-4 text-right">Cost ($)</th>
+                            <th className="px-6 py-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {entries.map((entry) => (
+                            <tr key={entry.id} className="hover:bg-white/5 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    {new Date(entry.timestamp).toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 font-mono text-xs">{entry.flowId}</td>
+                                <td className="px-6 py-4">
+                                    <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs border border-blue-500/20">
+                                        {entry.model}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right font-mono">{entry.inputTokens}</td>
+                                <td className="px-6 py-4 text-right font-mono">{entry.outputTokens}</td>
+                                <td className="px-6 py-4 text-right font-mono text-green-400">
+                                    ${entry.cost.toFixed(4)}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs border ${entry.status === 'success'
+                                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                            : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                        }`}>
+                                        {entry.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                        {entries.length === 0 && (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                                    No ledger entries found
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
