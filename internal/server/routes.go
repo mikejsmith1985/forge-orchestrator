@@ -17,6 +17,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("POST /api/commands", s.handleCreateCommand)
 	mux.HandleFunc("DELETE /api/commands/{id}", s.handleDeleteCommand)
 
+	// Optimizer Routes
+	mux.HandleFunc("GET /api/ledger/optimizations", s.handleGetOptimizations)
+	mux.HandleFunc("POST /api/ledger/optimizations/{id}/apply", s.handleApplyOptimization)
+
 	return mux
 }
 
