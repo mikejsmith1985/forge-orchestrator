@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // Educational Comment: Defining the shape of our data ensures type safety throughout the component.
 interface LedgerEntry {
@@ -87,8 +87,8 @@ export function LedgerView() {
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-1 rounded-full text-xs border ${entry.status === 'success'
-                                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                            : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                        ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                        : 'bg-red-500/10 text-red-400 border-red-500/20'
                                         }`}>
                                         {entry.status}
                                     </span>
