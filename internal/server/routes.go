@@ -9,6 +9,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("/api/health", s.healthHandler)
 	mux.HandleFunc("/ws", s.websocketHandler)
 	mux.HandleFunc("POST /api/ledger", s.handleCreateLedgerEntry)
+	mux.HandleFunc("GET /api/ledger", s.handleGetLedger)
 	mux.HandleFunc("POST /api/tokens/estimate", s.handleEstimateTokens)
 
 	return mux

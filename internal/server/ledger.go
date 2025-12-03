@@ -1,12 +1,16 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
 )
 
 // LedgerEntry represents a row in the token_ledger table.
 type LedgerEntry struct {
+	ID           int     `json:"id"`
+	Timestamp    string  `json:"timestamp"`
 	FlowID       string  `json:"flow_id"`
 	ModelUsed    string  `json:"model_used"`
 	AgentRole    string  `json:"agent_role"`
@@ -64,4 +68,51 @@ func (s *Server) handleEstimateTokens(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]int{"count": count})
+}
+
+// handleGetLedger retrieves the history of agent executions.
+// Educational Comment: We use a limit to prevent fetching too many rows at once,
+// which could impact performance. The default is 50, but clients can override it.
+func (s *Server) handleGetLedger(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	query := `
+		SELECT id, timestamp, flow_id, model_used, agent_role, prompt_hash, 
+		       input_tokens, output_tokens, total_cost_usd, latency_ms, status, error_message
+		FROM token_ledger
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`
+
+	rows, err := s.db.Query(query, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	entries := []LedgerEntry{}
+	for rows.Next() {
+		var e LedgerEntry
+		var errMsg sql.NullString
+		if err := rows.Scan(
+			&e.ID, &e.Timestamp, &e.FlowID, &e.ModelUsed, &e.AgentRole, &e.PromptHash,
+			&e.InputTokens, &e.OutputTokens, &e.TotalCostUSD, &e.LatencyMS, &e.Status, &errMsg,
+		); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if errMsg.Valid {
+			e.ErrorMessage = errMsg.String
+		}
+		entries = append(entries, e)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
 }

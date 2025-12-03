@@ -86,3 +86,82 @@ func TestHandleCreateLedgerEntry(t *testing.T) {
 		t.Errorf("expected 1 row in token_ledger, got %d", count)
 	}
 }
+
+func TestHandleGetLedger(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	// Initialize schema
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Insert some test data
+	insertQuery := `
+		INSERT INTO token_ledger (
+			flow_id, model_used, agent_role, prompt_hash, 
+			input_tokens, output_tokens, total_cost_usd, 
+			latency_ms, status, timestamp
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	// Insert older entry
+	_, err = db.Exec(insertQuery, "flow-1", "gpt-4", "coder", "hash1", 10, 10, 0.01, 100, "SUCCESS", "2023-01-01 10:00:00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Insert newer entry
+	_, err = db.Exec(insertQuery, "flow-2", "gpt-4", "architect", "hash2", 20, 20, 0.02, 200, "SUCCESS", "2023-01-01 11:00:00")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewServer(db)
+	handler := s.RegisterRoutes()
+
+	// Test 1: Get all entries (default limit)
+	req, _ := http.NewRequest("GET", "/api/ledger", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var entries []LedgerEntry
+	if err := json.Unmarshal(rr.Body.Bytes(), &entries); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(entries))
+	}
+
+	// Verify ordering (newest first)
+	if entries[0].FlowID != "flow-2" {
+		t.Errorf("expected first entry to be flow-2, got %s", entries[0].FlowID)
+	}
+
+	// Test 2: Limit
+	req, _ = http.NewRequest("GET", "/api/ledger?limit=1", nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &entries); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if len(entries) != 1 {
+		t.Errorf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].FlowID != "flow-2" {
+		t.Errorf("expected first entry to be flow-2, got %s", entries[0].FlowID)
+	}
+}
