@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS user_secrets (
 
 -- Index for fast retrieval of logs by flow ID
 CREATE INDEX IF NOT EXISTS idx_ledger_flow_id ON token_ledger(flow_id);
+
+-- Table 4: command_cards
+-- Stores reusable terminal commands for the user.
+CREATE TABLE IF NOT EXISTS command_cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    command TEXT NOT NULL,
+    description TEXT
+);
 `
 
 // TokenLedgerPath is the filename for the SQLite database.
