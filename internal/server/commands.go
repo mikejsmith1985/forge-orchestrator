@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+
+	"github.com/mikejsmith1985/forge-orchestrator/internal/llm"
 )
 
 // CommandCard represents a reusable terminal command.
@@ -86,4 +88,44 @@ func (s *Server) handleDeleteCommand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// RunCommandRequest represents the payload for running a command via LLM.
+type RunCommandRequest struct {
+	AgentRole  string `json:"agent_role"`
+	UserPrompt string `json:"user_prompt"`
+	Provider   string `json:"provider"`
+}
+
+// handleRunCommand executes a prompt using the LLM Gateway.
+// Educational Comment: This handler acts as the bridge between the frontend and the LLM Gateway.
+// It extracts the API key from the header for security and delegates the complex routing logic to the Gateway.
+func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
+	apiKey := r.Header.Get("X-Forge-Api-Key")
+	if apiKey == "" {
+		http.Error(w, "Missing X-Forge-Api-Key header", http.StatusUnauthorized)
+		return
+	}
+
+	var req RunCommandRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AgentRole == "" || req.UserPrompt == "" || req.Provider == "" {
+		http.Error(w, "agent_role, user_prompt, and provider are required", http.StatusBadRequest)
+		return
+	}
+
+	// Convert string provider to ProviderType
+	// In a real app, we might want validation here, but the Gateway handles unsupported providers.
+	response, err := s.gateway.ExecutePrompt(req.AgentRole, req.UserPrompt, apiKey, llm.ProviderType(req.Provider))
+	if err != nil {
+		http.Error(w, "LLM execution failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
