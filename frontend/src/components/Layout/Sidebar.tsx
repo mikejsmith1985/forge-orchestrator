@@ -4,8 +4,8 @@ import { cn } from '../../lib/utils';
 
 // Educational Comment: Defining props interface for type safety and clarity on what data the component needs.
 interface SidebarProps {
-    currentView: 'architect' | 'ledger' | 'commands';
-    onViewChange: (view: 'architect' | 'ledger' | 'commands') => void;
+    currentView: 'architect' | 'ledger' | 'commands' | 'settings';
+    onViewChange: (view: 'architect' | 'ledger' | 'commands' | 'settings') => void;
 }
 
 export function Sidebar({ currentView, onViewChange }: SidebarProps) {
@@ -15,7 +15,7 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
         { icon: BrainCircuit, label: 'Architect', view: 'architect' as const },
         { icon: LayoutDashboard, label: 'Dashboard', view: 'ledger' as const },
         { icon: GitGraph, label: 'Flows', view: 'commands' as const }, // Educational Comment: Mapping Flows to commands view as per contract
-        { icon: Settings, label: 'Settings', view: 'architect' as const }, // Placeholder
+        { icon: Settings, label: 'Settings', view: 'settings' as const },
     ];
 
     return (
