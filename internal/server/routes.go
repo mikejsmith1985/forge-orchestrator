@@ -22,6 +22,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /api/ledger/optimizations", s.handleGetOptimizations)
 	mux.HandleFunc("POST /api/ledger/optimizations/{id}/apply", s.handleApplyOptimization)
 
+	// Keyring Routes
+	mux.HandleFunc("POST /api/keys", s.handleSetAPIKey)
+	mux.HandleFunc("GET /api/keys/status", s.handleGetAPIKeyStatus)
+	mux.HandleFunc("DELETE /api/keys/{provider}", s.handleDeleteAPIKey)
+
 	return mux
 }
 

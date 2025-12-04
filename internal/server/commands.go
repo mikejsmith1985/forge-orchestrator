@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/mikejsmith1985/forge-orchestrator/internal/llm"
+	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
 )
 
 // CommandCard represents a reusable terminal command.
@@ -103,10 +104,15 @@ type RunCommandRequest struct {
 // It extracts the API key from the header for security and delegates the complex routing logic to the Gateway.
 func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 	apiKey := r.Header.Get("X-Forge-Api-Key")
-	if apiKey == "" {
-		http.Error(w, "Missing X-Forge-Api-Key header", http.StatusUnauthorized)
-		return
-	}
+
+	// If API key is not in header, try to get it from the keyring
+	// Educational Comment: We check the header first to allow per-request overrides.
+	// If not found, we fallback to the secure keyring.
+	// Note: We need the provider to look up the key, so we'll do this check
+	// after decoding the body if it's still missing.
+	// However, to keep the flow simple, we can decode first.
+	// But wait, the original code checked the header *before* decoding.
+	// Let's decode first now so we have the provider.
 
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -123,6 +129,19 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 
 	if req.AgentRole == "" || req.Provider == "" {
 		http.Error(w, "agent_role and provider are required", http.StatusBadRequest)
+		return
+	}
+
+	if apiKey == "" {
+		// Try to get from keyring
+		key, err := security.GetAPIKey(req.Provider)
+		if err == nil && key != "" {
+			apiKey = key
+		}
+	}
+
+	if apiKey == "" {
+		http.Error(w, "Missing X-Forge-Api-Key header and no key found in keyring", http.StatusUnauthorized)
 		return
 	}
 
