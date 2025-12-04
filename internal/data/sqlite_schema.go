@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS forge_flows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     description TEXT,
-    flow_data TEXT NOT NULL, -- The serialized JSON structure of the nodes and edges
+    data TEXT NOT NULL, -- The serialized JSON structure of the nodes and edges
+    status TEXT DEFAULT 'draft', -- 'draft', 'active', 'archived'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

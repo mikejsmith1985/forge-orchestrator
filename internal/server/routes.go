@@ -27,6 +27,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /api/keys/status", s.handleGetAPIKeyStatus)
 	mux.HandleFunc("DELETE /api/keys/{provider}", s.handleDeleteAPIKey)
 
+	// Flows Routes
+	mux.HandleFunc("GET /api/flows", s.handleGetFlows)
+	mux.HandleFunc("POST /api/flows", s.handleCreateFlow)
+	mux.HandleFunc("PUT /api/flows/{id}", s.handleUpdateFlow)
+	mux.HandleFunc("DELETE /api/flows/{id}", s.handleDeleteFlow)
+	mux.HandleFunc("POST /api/flows/{id}/execute", s.handleExecuteFlow)
+
 	return mux
 }
 
