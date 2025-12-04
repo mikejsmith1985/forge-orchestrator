@@ -111,12 +111,25 @@ export function CommandDeck() {
         }
     };
 
-    // Educational Comment: Handler for the "Run" button. This is a placeholder
-    // that could be extended to execute commands or trigger backend workflows.
+    // Educational Comment: Handler for the "Run" button.
+    // Executes the command via the backend API, which uses the LLM Gateway.
     const handleRunCommand = async (command: Command) => {
-        console.log('Running command:', command);
-        // TODO: Implement command execution logic when backend endpoint is available
-        alert(`Would execute: ${command.command}`);
+        try {
+            const response = await fetch(`/api/commands/${command.id}/run`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to run command');
+            }
+
+            const result = await response.json();
+            console.log('Command executed:', result);
+            // Optional: Show success message
+        } catch (err) {
+            console.error('Error running command:', err);
+            setError(err instanceof Error ? err.message : 'Failed to run command');
+        }
     };
 
     if (loading) {

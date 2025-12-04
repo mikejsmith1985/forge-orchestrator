@@ -29,15 +29,15 @@ type LLMProvider interface {
 
 // Gateway handles routing prompts to the appropriate provider.
 type Gateway struct {
-	anthropicClient LLMProvider
-	openAIClient    LLMProvider
+	AnthropicClient LLMProvider
+	OpenAIClient    LLMProvider
 }
 
 // NewGateway creates a new Gateway with initialized clients.
 func NewGateway() *Gateway {
 	return &Gateway{
-		anthropicClient: &AnthropicClient{},
-		openAIClient:    &OpenAIClient{},
+		AnthropicClient: &AnthropicClient{},
+		OpenAIClient:    &OpenAIClient{},
 	}
 }
 
@@ -55,9 +55,9 @@ func (g *Gateway) ExecutePrompt(agentRole, userPrompt, apiKey string, provider P
 
 	switch provider {
 	case ProviderAnthropic:
-		content, inputTokens, outputTokens, sendErr = g.anthropicClient.Send(systemPrompt, userPrompt, apiKey)
+		content, inputTokens, outputTokens, sendErr = g.AnthropicClient.Send(systemPrompt, userPrompt, apiKey)
 	case ProviderOpenAI:
-		content, inputTokens, outputTokens, sendErr = g.openAIClient.Send(systemPrompt, userPrompt, apiKey)
+		content, inputTokens, outputTokens, sendErr = g.OpenAIClient.Send(systemPrompt, userPrompt, apiKey)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
