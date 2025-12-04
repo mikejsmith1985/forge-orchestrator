@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit, Workflow } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-// Educational Comment: Defining props interface for type safety and clarity on what data the component needs.
-interface SidebarProps {
-    currentView: 'architect' | 'ledger' | 'commands' | 'settings';
-    onViewChange: (view: 'architect' | 'ledger' | 'commands' | 'settings') => void;
-}
-
-export function Sidebar({ currentView, onViewChange }: SidebarProps) {
+export function Sidebar() {
     const [isOpen, setIsOpen] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const navItems = [
-        { icon: BrainCircuit, label: 'Architect', view: 'architect' as const },
-        { icon: LayoutDashboard, label: 'Dashboard', view: 'ledger' as const },
-        { icon: GitGraph, label: 'Flows', view: 'commands' as const }, // Educational Comment: Mapping Flows to commands view as per contract
-        { icon: Settings, label: 'Settings', view: 'settings' as const },
+        { icon: BrainCircuit, label: 'Architect', path: '/architect' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/ledger' },
+        { icon: GitGraph, label: 'Commands', path: '/commands' },
+        { icon: Workflow, label: 'Flows', path: '/flows' },
+        { icon: Settings, label: 'Settings', path: '/settings' },
     ];
+
+    const isActive = (path: string) => {
+        if (path === '/flows' && location.pathname.startsWith('/flows')) return true;
+        return location.pathname === path;
+    };
 
     return (
         <>
@@ -51,19 +54,19 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
                             <button
                                 key={item.label}
                                 onClick={() => {
-                                    onViewChange(item.view);
+                                    navigate(item.path);
                                     setIsOpen(false);
                                 }}
                                 className={cn(
                                     "flex items-center w-full px-4 py-3 rounded-lg transition-colors group text-left",
-                                    currentView === item.view
+                                    isActive(item.path)
                                         ? "bg-white/10 text-white"
                                         : "text-gray-300 hover:bg-white/5 hover:text-white"
                                 )}
                             >
                                 <item.icon className={cn(
                                     "w-5 h-5 mr-3 transition-colors",
-                                    currentView === item.view
+                                    isActive(item.path)
                                         ? "text-blue-400"
                                         : "group-hover:text-blue-400"
                                 )} />
