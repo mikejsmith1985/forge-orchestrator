@@ -93,7 +93,7 @@ test.describe('Command Deck', () => {
         await addButton.click();
 
         // Educational Comment: Verify the modal title is visible, confirming the modal opened
-        await expect(page.getByText('Add Command')).toBeVisible();
+        await expect(page.getByTestId('add-command-modal')).toBeVisible();
 
         // Educational Comment: Verify all three required form fields are present.
         // This ensures the form is complete and ready for user input.
@@ -138,7 +138,7 @@ test.describe('Command Deck', () => {
         // the form was submitted successfully. In a full integration test with a running
         // backend, we could also verify the command card appears in the grid using:
         // await expect(page.getByTestId('command-card')).toBeVisible();
-        await expect(page.getByText('Add Command')).not.toBeVisible();
+        await expect(page.getByTestId('add-command-modal')).not.toBeVisible();
     });
 
     // Educational Comment: TEST - Empty State or Data Display
@@ -208,19 +208,17 @@ test.describe('Command Deck', () => {
         // Educational Comment: Click run. This triggers the backend `handleRunCommand`.
         await runButton.click();
 
-        // Educational Comment: Verify success feedback.
-        // The UI should show a toast or some indication.
-        // Assuming the UI shows a "Command executed" message or similar.
-        // If the UI doesn't have a toast yet, we might check for a status change or console log.
-        // Based on previous context, the UI might not have a toast yet.
-        // Let's check if the "Run" button goes into a loading state or similar.
-        // Or we can check the Ledger view to see if a new entry appeared.
+        // Educational Comment: Verify the result modal appears.
+        // We expect the modal to show the output from the mocked API response.
+        await expect(page.getByText('Execution Result')).toBeVisible();
 
-        // Let's navigate to the Ledger view to verify the token usage was logged.
-        await page.click('text=Ledger');
+        // Verify the output content is displayed
+        // The mock returns { success: true, output: 'Command executed' }
+        // Our component JSON.stringifies the whole result
+        await expect(page.getByText('Command executed')).toBeVisible();
 
-        // Educational Comment: Verify the ledger table has entries.
-        // We expect a new entry for the command execution.
-        await expect(page.getByText('Ledger Test Command')).toBeVisible();
+        // Close the modal
+        await page.getByRole('button', { name: 'Close' }).click();
+        await expect(page.getByText('Execution Result')).not.toBeVisible();
     });
 });

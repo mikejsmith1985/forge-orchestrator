@@ -21,6 +21,13 @@ export function CommandDeck() {
     const [error, setError] = useState<string | null>(null);
     const [showForm, setShowForm] = useState(false);
 
+    // Educational Comment: State for tracking command execution
+    // runningCommandId tracks which specific command is currently executing to show loading state on the correct card
+    const [runningCommandId, setRunningCommandId] = useState<number | null>(null);
+    // executionResult stores the output from the backend to display in the modal
+    const [executionResult, setExecutionResult] = useState<string | null>(null);
+    const [showResultModal, setShowResultModal] = useState(false);
+
     // Educational Comment: Form state for creating new commands
     const [formData, setFormData] = useState({
         name: '',
@@ -113,8 +120,11 @@ export function CommandDeck() {
 
     // Educational Comment: Handler for the "Run" button.
     // Executes the command via the backend API, which uses the LLM Gateway.
+    // Educational Comment: Handler for the "Run" button.
+    // Executes the command via the backend API, which uses the LLM Gateway.
     const handleRunCommand = async (command: Command) => {
         try {
+            setRunningCommandId(command.id);
             const response = await fetch(`/api/commands/${command.id}/run`, {
                 method: 'POST',
             });
@@ -125,10 +135,18 @@ export function CommandDeck() {
 
             const result = await response.json();
             console.log('Command executed:', result);
-            // Optional: Show success message
+
+            // Educational Comment: Display the result to the user
+            // We assume the backend returns a JSON object with an 'output' or similar field, 
+            // or we just stringify the whole result if it's complex.
+            // Adjust based on actual backend response structure.
+            setExecutionResult(JSON.stringify(result, null, 2));
+            setShowResultModal(true);
         } catch (err) {
             console.error('Error running command:', err);
             setError(err instanceof Error ? err.message : 'Failed to run command');
+        } finally {
+            setRunningCommandId(null);
         }
     };
 
@@ -189,11 +207,19 @@ export function CommandDeck() {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => handleRunCommand(cmd)}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                    disabled={runningCommandId === cmd.id}
+                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded transition-colors ${runningCommandId === cmd.id
+                                        ? 'bg-gray-600 cursor-not-allowed text-gray-300'
+                                        : 'bg-green-600 hover:bg-green-700 text-white'
+                                        }`}
                                     data-testid="run-command-btn"
                                 >
-                                    <Play size={16} />
-                                    Run
+                                    {runningCommandId === cmd.id ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                    ) : (
+                                        <Play size={16} />
+                                    )}
+                                    {runningCommandId === cmd.id ? 'Running...' : 'Run'}
                                 </button>
                                 <button
                                     onClick={() => handleDeleteCommand(cmd.id)}
@@ -218,7 +244,7 @@ export function CommandDeck() {
                         onClick={() => setShowForm(false)}
                     />
 
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="add-command-modal">
                         <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-white/10">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-2xl font-bold text-white">Add Command</h2>
@@ -293,6 +319,41 @@ export function CommandDeck() {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </>
+            )}
+            {/* Result Modal */}
+            {showResultModal && (
+                <>
+                    <div
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                        onClick={() => setShowResultModal(false)}
+                    />
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl border border-white/10 max-h-[80vh] flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-2xl font-bold text-white">Execution Result</h2>
+                                <button
+                                    onClick={() => setShowResultModal(false)}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-auto bg-gray-900 rounded p-4">
+                                <pre className="text-green-400 font-mono text-sm whitespace-pre-wrap">
+                                    {executionResult}
+                                </pre>
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                                <button
+                                    onClick={() => setShowResultModal(false)}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </>
