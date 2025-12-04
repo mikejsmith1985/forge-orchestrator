@@ -66,6 +66,20 @@ func (g *Gateway) ExecutePrompt(agentRole, userPrompt, apiKey string, provider P
 		return nil, sendErr
 	}
 
+	// Clean the output (remove ANSI codes, etc.)
+	content = CleanOutput(content)
+
+	// Attempt to extract JSON. If successful, use the extracted JSON.
+	// If not, we keep the cleaned content as is (best effort).
+	if jsonContent, err := ExtractJSON(content); err == nil {
+		content = jsonContent
+	}
+
+	// Fallback token counting if provider didn't return usage
+	if inputTokens == 0 && outputTokens == 0 {
+		inputTokens, outputTokens = ExtractTokenCount(content)
+	}
+
 	cost := calculateCost(provider, inputTokens, outputTokens)
 
 	return &LLMResponse{

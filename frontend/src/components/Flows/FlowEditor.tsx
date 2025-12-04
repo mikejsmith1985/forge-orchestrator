@@ -9,6 +9,7 @@ import ReactFlow, {
     type Connection,
     type Edge,
     type Node,
+    type ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Save, Play, ArrowLeft } from 'lucide-react';
@@ -35,7 +36,7 @@ const FlowEditorContent: React.FC = () => {
     // (like dragging nodes) automatically while keeping our local state in sync.
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+    const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
     // EDUCATIONAL COMMENT: Handling Connections
     // The onConnect callback is triggered when a user connects two handles.
@@ -57,7 +58,7 @@ const FlowEditorContent: React.FC = () => {
             const type = event.dataTransfer.getData('application/reactflow');
 
             // check if the dropped element is valid
-            if (typeof type === 'undefined' || !type) {
+            if (typeof type === 'undefined' || !type || !reactFlowInstance) {
                 return;
             }
 

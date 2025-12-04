@@ -1,0 +1,10 @@
+{
+  "status": "completed",
+  "branch": "feat/issue-028-backend-output-parser",
+  "files": [
+    "internal/llm/parser.go",
+    "internal/llm/parser_test.go",
+    "internal/llm/gateway.go",
+    "internal/llm/gateway_test.go"
+  ]
+}

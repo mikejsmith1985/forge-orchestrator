@@ -30,8 +30,8 @@ func TestExecutePrompt_SystemPromptSelection(t *testing.T) {
 	}
 
 	gateway := &Gateway{
-		anthropicClient: mockProvider,
-		openAIClient:    mockProvider,
+		AnthropicClient: mockProvider,
+		OpenAIClient:    mockProvider,
 	}
 
 	// Test Architect role
@@ -49,8 +49,8 @@ func TestExecutePrompt_TokenCountingAndCost(t *testing.T) {
 	}
 
 	gateway := &Gateway{
-		anthropicClient: mockProvider,
-		openAIClient:    mockProvider,
+		AnthropicClient: mockProvider,
+		OpenAIClient:    mockProvider,
 	}
 
 	// Test Anthropic Cost

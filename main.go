@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -39,30 +40,34 @@ func main() {
 	srv := server.NewServer(db)
 	router := srv.RegisterRoutes()
 
-	// Serve the frontend (we need to wrap the router to handle API vs Static)
-	// For simplicity, we can mount the frontend handler to the router if we change RegisterRoutes to return *http.ServeMux
-	// Or we can just use the router as the main handler and add the file server to it.
-	// Let's modify RegisterRoutes to allow adding more routes or handle it here.
-	// Actually, the requirement says "Replace inline HTTP handler with server.NewServer()".
-	// The server.RegisterRoutes returns a handler that handles /api/health and /ws.
-	// We also need to serve the frontend.
-	// Let's assume for now we serve API routes and fallback to frontend, or mount them separately.
-	// Since RegisterRoutes returns http.Handler (likely a ServeMux), we can't easily add to it if it's opaque.
-	// But it returns http.Handler.
-	// Let's check server.go/routes.go again. It uses http.NewServeMux().
+	// Cast to *http.ServeMux to add SPA handler
+	mux, ok := router.(*http.ServeMux)
+	if !ok {
+		log.Fatal("Router is not *http.ServeMux")
+	}
 
-	// We can create a root mux here.
-	rootMux := http.NewServeMux()
+	// SPA Handler
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Prepare path for fs.Open (no leading slash)
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "."
+		}
 
-	// Mount API routes
-	rootMux.Handle("/api/", router)
-	rootMux.Handle("/ws", router)
+		// Try to open the file to check if it exists
+		f, err := distFS.Open(path)
+		if err != nil {
+			// If file not found, assume SPA route and serve index.html
+			r.URL.Path = "/"
+		} else {
+			defer f.Close()
+		}
 
-	// Serve frontend for everything else
-	rootMux.Handle("/", http.FileServer(http.FS(distFS)))
+		http.FileServer(http.FS(distFS)).ServeHTTP(w, r)
+	})
 
 	log.Println("Starting server on :8080...")
-	if err := http.ListenAndServe(":8080", rootMux); err != nil {
+	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
 	}
 }

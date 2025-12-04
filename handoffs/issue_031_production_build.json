@@ -1,0 +1,9 @@
+{
+    "issue_id": "031",
+    "status": "completed",
+    "verification_evidence": {
+        "manual_verification": "Verified via curl that /architect returns index.html (SPA fallback) and /assets/index-*.js returns JS content.",
+        "automated_tests": "N/A - Infrastructure change"
+    },
+    "notes": "The application now runs as a single binary. Ensure `npm run build` is executed in `frontend/` before running `go run main.go` or `go build`."
+}

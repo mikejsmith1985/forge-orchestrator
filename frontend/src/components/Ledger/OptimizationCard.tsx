@@ -28,7 +28,7 @@ export function OptimizationCard({ suggestion, onApply }: OptimizationCardProps)
             // This allows the parent to manage the actual data update and API call.
             await onApply(suggestion.id);
             setIsApplying(false);
-        } catch (err) {
+        } catch {
             setError('Failed to apply');
             setIsApplying(false);
         }
