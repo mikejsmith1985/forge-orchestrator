@@ -179,15 +179,12 @@ test.describe('Command Deck', () => {
     // Purpose: Verify that executing a command triggers the backend process
     // and updates the token ledger. Since we are mocking the backend, we
     // verify the UI feedback and ensure the application handles the success state.
-    test('should run a command and update ledger', async ({ page }) => {
+    test('should execute command and show result', async ({ page }) => {
         // Educational Comment: Navigate to Command Deck
         await page.goto('/');
         await page.click('text=Flows');
 
         // Educational Comment: Ensure at least one command exists.
-        // If not, create one first (reusing the logic from the previous test would be better,
-        // but for isolation we'll just create one quickly if needed, or assume the mock data has one).
-        // For this E2E test, let's create a fresh one to be sure.
         await page.getByTestId('add-command-btn').click();
         await page.getByTestId('command-name-input').fill('Ledger Test Command');
         await page.getByTestId('command-description-input').fill('Testing ledger update');
@@ -196,25 +193,32 @@ test.describe('Command Deck', () => {
         await page.waitForTimeout(500); // Wait for creation
 
         // Educational Comment: Find the "Run" button for the command we just created.
-        // We filter by the text we just entered to find the specific card.
-        // Since we mock the GET /api/commands to return 'Existing Command', we should rely on that or the one we just 'created'.
-        // However, since we mock GET, the 'created' one won't appear unless we update the GET mock or the frontend optimistically updates.
-        // Let's assume the frontend re-fetches. If it re-fetches, it gets the static mock list.
-        // So we should look for 'Existing Command' which is in our mock.
-
         const commandCard = page.locator('div').filter({ hasText: 'Existing Command' }).last();
         const runButton = commandCard.getByTestId('run-command-btn');
+
+        // Educational Comment: Mock the run endpoint with a delay to verify the loading state.
+        await page.route(/\/api\/commands\/.*\/run/, async route => {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true, output: 'Command executed' })
+            });
+        });
 
         // Educational Comment: Click run. This triggers the backend `handleRunCommand`.
         await runButton.click();
 
-        // Educational Comment: Verify the result modal appears.
+        // Educational Comment: Verify "Running..." state appears.
+        // This confirms the UI provides immediate feedback to the user.
+        await expect(runButton).toBeDisabled();
+        await expect(runButton).toHaveText('Running...');
+
+        // Educational Comment: Verify the result modal appears after the delay.
         // We expect the modal to show the output from the mocked API response.
         await expect(page.getByText('Execution Result')).toBeVisible();
 
         // Verify the output content is displayed
-        // The mock returns { success: true, output: 'Command executed' }
-        // Our component JSON.stringifies the whole result
         await expect(page.getByText('Command executed')).toBeVisible();
 
         // Close the modal
