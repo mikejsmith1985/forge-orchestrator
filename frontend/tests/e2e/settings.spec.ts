@@ -57,6 +57,21 @@ test.describe('Key Management UI', () => {
     });
 
     test('should allow updating a key', async ({ page }) => {
+        // Override the status mock for this test to handle the state change
+        let isKeySet = false;
+        await page.route('/api/keys/status', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                json: {
+                    keys: [
+                        { provider: 'anthropic', isSet: true },
+                        { provider: 'openai', isSet: isKeySet },
+                    ],
+                },
+            });
+        });
+
         await page.getByRole('button', { name: 'Settings' }).click();
         await expect(page.locator('.animate-spin')).not.toBeVisible();
 
@@ -66,16 +81,33 @@ test.describe('Key Management UI', () => {
 
         // Verify initial state
         await expect(saveBtn).toBeDisabled();
+        await expect(openaiSection.getByText('Not Configured')).toBeVisible();
 
         // Enter key
         await input.fill('sk-test-123');
         await expect(saveBtn).toBeEnabled();
 
+        // Update our local state when the POST happens
+        await page.route('/api/keys', async (route) => {
+            const body = JSON.parse(route.request().postData() || '{}');
+            if (body.provider === 'openai' && body.key === 'sk-test-123') {
+                isKeySet = true; // Update state for next GET
+                await route.fulfill({ status: 200 });
+            } else {
+                await route.fulfill({ status: 400 });
+            }
+        });
+
         // Save
         await saveBtn.click();
 
-        // Verify input is cleared after save (mock implementation in component does this)
+        // Verify input is cleared after save
         await expect(input).toBeEmpty();
+
+        // Verify status changes to Configured
+        // The UI should re-fetch status after save
+        await expect(openaiSection.getByText('Configured')).toBeVisible();
+        await expect(openaiSection.getByText('Key is currently set')).toBeVisible();
     });
 
     test('should mask api keys', async ({ page }) => {
