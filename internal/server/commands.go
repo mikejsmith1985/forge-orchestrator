@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -107,25 +108,85 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
 	var req RunCommandRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if req.AgentRole == "" || req.UserPrompt == "" || req.Provider == "" {
-		http.Error(w, "agent_role, user_prompt, and provider are required", http.StatusBadRequest)
+	if req.AgentRole == "" || req.Provider == "" {
+		http.Error(w, "agent_role and provider are required", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch command from database
+	var commandPrompt string
+	err = s.db.QueryRow("SELECT command FROM command_cards WHERE id = ?", id).Scan(&commandPrompt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Command not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
 	// Convert string provider to ProviderType
-	// In a real app, we might want validation here, but the Gateway handles unsupported providers.
-	response, err := s.gateway.ExecutePrompt(req.AgentRole, req.UserPrompt, apiKey, llm.ProviderType(req.Provider))
+	provider := llm.ProviderType(req.Provider)
+
+	// Execute via Gateway
+	response, err := s.gateway.ExecutePrompt(req.AgentRole, commandPrompt, apiKey, provider)
+
+	// Prepare ledger entry
+	ledgerEntry := LedgerEntry{
+		FlowID:     "cmd-" + strconv.Itoa(id), // Simple flow ID for now
+		ModelUsed:  string(provider),
+		AgentRole:  req.AgentRole,
+		PromptHash: "hash-" + strconv.Itoa(len(commandPrompt)), // Placeholder hash
+		Status:     "SUCCESS",
+	}
+
 	if err != nil {
+		ledgerEntry.Status = "FAILED"
+		ledgerEntry.ErrorMessage = err.Error()
+		// Log failure to ledger
+		s.logToLedger(ledgerEntry)
 		http.Error(w, "LLM execution failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Update ledger entry with success details
+	ledgerEntry.InputTokens = response.InputTokens
+	ledgerEntry.OutputTokens = response.OutputTokens
+	ledgerEntry.TotalCostUSD = response.Cost
+	// Note: Latency is not captured here yet, could add timing around ExecutePrompt
+
+	// Log success to ledger
+	s.logToLedger(ledgerEntry)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// logToLedger helper to insert into token_ledger
+func (s *Server) logToLedger(entry LedgerEntry) {
+	query := `
+		INSERT INTO token_ledger (
+			flow_id, model_used, agent_role, prompt_hash, 
+			input_tokens, output_tokens, total_cost_usd, 
+			latency_ms, status, error_message
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	s.db.Exec(query,
+		entry.FlowID, entry.ModelUsed, entry.AgentRole, entry.PromptHash,
+		entry.InputTokens, entry.OutputTokens, entry.TotalCostUSD,
+		entry.LatencyMS, entry.Status, entry.ErrorMessage,
+	)
 }

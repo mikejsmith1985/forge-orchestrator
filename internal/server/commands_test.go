@@ -26,6 +26,20 @@ func setupTestDB(t *testing.T) *sql.DB {
 		command TEXT NOT NULL,
 		description TEXT
 	);
+	CREATE TABLE IF NOT EXISTS token_ledger (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+		flow_id TEXT,
+		model_used TEXT,
+		agent_role TEXT,
+		prompt_hash TEXT,
+		input_tokens INTEGER,
+		output_tokens INTEGER,
+		total_cost_usd REAL,
+		latency_ms INTEGER,
+		status TEXT,
+		error_message TEXT
+	);
 	`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -129,5 +143,78 @@ func TestHandleDeleteCommand(t *testing.T) {
 	db.QueryRow("SELECT COUNT(*) FROM command_cards WHERE id = ?", id).Scan(&count)
 	if count != 0 {
 		t.Errorf("Expected command to be deleted")
+	}
+}
+
+// MockLLMProvider for testing
+type MockLLMProvider struct {
+	SendFunc func(systemPrompt, userPrompt, apiKey string) (string, int, int, error)
+}
+
+func (m *MockLLMProvider) Send(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
+	if m.SendFunc != nil {
+		return m.SendFunc(systemPrompt, userPrompt, apiKey)
+	}
+	return "mock response", 10, 20, nil
+}
+
+func TestHandleRunCommand(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Seed command
+	res, _ := db.Exec("INSERT INTO command_cards (name, command, description) VALUES (?, ?, ?)", "Test Cmd", "echo test", "Desc")
+	id, _ := res.LastInsertId()
+
+	// Create server with mock gateway
+	server := NewServer(db)
+	mockProvider := &MockLLMProvider{
+		SendFunc: func(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
+			if apiKey != "test-key" {
+				return "", 0, 0, nil
+			}
+			return "Executed: " + userPrompt, 5, 10, nil
+		},
+	}
+	// Inject mock provider into gateway
+	server.gateway.AnthropicClient = mockProvider
+	server.gateway.OpenAIClient = mockProvider
+
+	handler := server.RegisterRoutes()
+
+	// Create request
+	reqBody := map[string]string{
+		"agent_role": "Implementation",
+		"provider":   "OpenAI",
+	}
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "/api/commands/"+strconv.Itoa(int(id))+"/run", bytes.NewBuffer(body))
+	req.Header.Set("X-Forge-Api-Key", "test-key")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v body: %v",
+			status, http.StatusOK, rr.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if content, ok := response["Content"].(string); !ok || content != "Executed: echo test" {
+		t.Errorf("Unexpected content: %v", response["Content"])
+	}
+
+	// Verify ledger entry
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM token_ledger").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query ledger: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 ledger entry, got %d", count)
 	}
 }
