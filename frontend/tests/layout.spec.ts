@@ -35,7 +35,7 @@ test.describe('Application Layout', () => {
         // Check if sidebar is hidden (off-screen)
         // In our implementation, it has -translate-x-full class
         // We can check if it's not in viewport or check CSS
-        const transform = await sidebar.evaluate((el) => window.getComputedStyle(el).transform);
+        // const transform = await sidebar.evaluate((el) => window.getComputedStyle(el).transform);
         // matrix(1, 0, 0, 1, -256, 0) corresponds to translate(-256px, 0) if width is 256px
         // Or simpler, check if it's not visible in viewport
 

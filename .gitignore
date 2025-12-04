@@ -35,3 +35,10 @@ go.work.sum
 forge-orchestrator
 forge_ledger.db
 
+
+# Frontend artifacts
+dist/
+node_modules/
+
+# Database
+token_ledger.db

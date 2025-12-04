@@ -87,7 +87,7 @@ func TestHandleApplyOptimization(t *testing.T) {
 	// Note: Testing PathValue in unit tests requires Go 1.22+ and using the actual ServeMux
 	// or mocking the request context. Since we are using standard http.HandlerFunc here,
 	// PathValue won't be populated unless we route through the mux.
-	
+
 	mux := server.RegisterRoutes()
 	req, _ := http.NewRequest("POST", "/api/ledger/optimizations/1/apply", nil)
 	rr := httptest.NewRecorder()

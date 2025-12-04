@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TokenMeter } from './TokenMeter';
 
 /**
@@ -8,13 +8,8 @@ import { TokenMeter } from './TokenMeter';
  */
 export const ArchitectView: React.FC = () => {
     const [input, setInput] = useState('');
-    const [tokenCount, setTokenCount] = useState(0);
-
-    useEffect(() => {
-        // Approximate token count: 4 characters = 1 token
-        const count = Math.ceil(input.length / 4);
-        setTokenCount(count);
-    }, [input]);
+    // Approximate token count: 4 characters = 1 token
+    const tokenCount = Math.ceil(input.length / 4);
 
     return (
         <div className="flex flex-col h-full p-6 space-y-6 max-w-4xl mx-auto w-full">
