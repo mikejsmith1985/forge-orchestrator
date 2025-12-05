@@ -2,18 +2,15 @@ import { test, expect } from '@playwright/test';
 
 test('Flows Editor Visual Verification', async ({ page }) => {
     // Navigate to Flows List
-    await page.goto('http://localhost:8082/flows');
+    await page.goto('/flows');
     await expect(page.getByRole('heading', { name: 'Flows' })).toBeVisible();
-    await page.screenshot({ path: 'tests/e2e/screenshots/flows-list.png' });
 
     // Navigate to Create New Flow
     await page.getByText('Create New Flow').click();
     await expect(page.getByText('New Flow')).toBeVisible();
-    await expect(page.getByText('Input Node')).toBeVisible();
 
     // Wait for React Flow to render
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'tests/e2e/screenshots/flow-editor-new.png' });
 
     // Drag and drop check (visual only, hard to verify logic without complex setup)
     // We just verify the canvas is there

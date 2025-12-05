@@ -60,9 +60,9 @@ test.describe('Command Deck', () => {
         // allows Playwright's baseURL config to determine the actual server location.
         await page.goto('/');
 
-        // Educational Comment: Simulate user clicking the "Flows" navigation item in the sidebar.
+        // Educational Comment: Simulate user clicking the "Commands" navigation item in the sidebar.
         // This is how users navigate to the Command Deck in the actual application.
-        await page.click('text=Flows');
+        await page.click('text=Commands');
 
         // Educational Comment: Verify the CommandDeck component is rendered by checking
         // for its data-testid attribute. Using data-testid is best practice as it creates
@@ -83,7 +83,7 @@ test.describe('Command Deck', () => {
     test('should show add command modal', async ({ page }) => {
         // Educational Comment: Navigate to the Command Deck view
         await page.goto('/');
-        await page.click('text=Flows');
+        await page.click('text=Commands');
 
         // Educational Comment: Find and click the "Add Command" button using its test ID.
         // We first verify it's visible to ensure the UI is in the expected state.
@@ -114,7 +114,7 @@ test.describe('Command Deck', () => {
     test('should add a new command', async ({ page }) => {
         // Educational Comment: Navigate to Command Deck
         await page.goto('/');
-        await page.click('text=Flows');
+        await page.click('text=Commands');
 
         // Educational Comment: Open the "Add Command" modal by clicking the button
         await page.getByTestId('add-command-btn').click();
@@ -157,7 +157,7 @@ test.describe('Command Deck', () => {
 
         // Educational Comment: Navigate to Command Deck
         await page.goto('/');
-        await page.click('text=Flows');
+        await page.click('text=Commands');
 
         // Educational Comment: Wait for the API response to complete loading.
         // The CommandDeck component fetches data on mount via useEffect.
@@ -182,7 +182,7 @@ test.describe('Command Deck', () => {
     test('should execute command and show result', async ({ page }) => {
         // Educational Comment: Navigate to Command Deck
         await page.goto('/');
-        await page.click('text=Flows');
+        await page.click('text=Commands');
 
         // Educational Comment: Ensure at least one command exists.
         await page.getByTestId('add-command-btn').click();

@@ -19,29 +19,45 @@ test.describe('Token Optimizer', () => {
     // Purpose: Ensure that when the API returns suggestions, they are correctly
     // displayed as cards in the UI.
     test('should display optimization suggestions', async ({ page }) => {
-        // Mock the ledger API as it's required for the component to load without error.
-        await mockLedger(page);
-
-        // Educational Comment: Mock the API response for optimizations.
-        // We must match the Suggestion interface expected by OptimizationCard.
-        await page.route('/api/ledger/optimizations', async route => {
-            const json = [
-                {
-                    id: 'opt-1',
-                    title: 'Unused Token Cleanup',
-                    description: 'Remove 50 unused tokens to save space.',
-                    estimatedSavings: 50.0,
-                    status: 'pending'
-                },
-                {
-                    id: 'opt-2',
-                    title: 'Compress History',
-                    description: 'Compress old ledger entries.',
-                    estimatedSavings: 120.5,
-                    status: 'pending'
-                }
-            ];
-            await route.fulfill({ json });
+        // Educational Comment: Mock the API responses BEFORE navigation.
+        // The route() method intercepts network requests matching the pattern.
+        await page.route(/\/api\/ledger$/, async route => {
+            await route.fulfill({ 
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([])
+            });
+        });
+        
+        await page.route(/\/api\/ledger\/optimizations$/, async route => {
+            await route.fulfill({ 
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                    {
+                        id: 1,
+                        type: 'model_switch',
+                        title: 'Unused Token Cleanup',
+                        description: 'Remove 50 unused tokens to save space.',
+                        estimated_savings: 50.0,
+                        savings_unit: 'USD',
+                        target_flow_id: 'flow-1',
+                        apply_action: '{"action":"switch_model"}',
+                        status: 'pending'
+                    },
+                    {
+                        id: 2,
+                        type: 'prompt_optimization',
+                        title: 'Compress History',
+                        description: 'Compress old ledger entries.',
+                        estimated_savings: 120.5,
+                        savings_unit: 'USD',
+                        target_flow_id: 'flow-2',
+                        apply_action: '{"action":"optimize_prompt"}',
+                        status: 'pending'
+                    }
+                ])
+            });
         });
 
         // Educational Comment: Navigate to the root URL first.
@@ -49,6 +65,9 @@ test.describe('Token Optimizer', () => {
 
         // Educational Comment: Click "Dashboard" in the sidebar to switch to the Ledger view.
         await page.click('text=Dashboard');
+
+        // Wait for data loading to complete
+        await page.waitForLoadState('networkidle');
 
         // Educational Comment: Verify that the optimization cards are visible.
         await expect(page.getByText('Unused Token Cleanup')).toBeVisible();
@@ -61,37 +80,60 @@ test.describe('Token Optimizer', () => {
     // Purpose: Verify that clicking the "Apply" button updates the UI state
     // to indicate the optimization has been applied.
     test('should apply optimization on click', async ({ page }) => {
-        // Mock the ledger API.
-        await mockLedger(page);
+        // Mock the ledger API BEFORE navigation using regex pattern.
+        await page.route(/\/api\/ledger$/, async route => {
+            await route.fulfill({ 
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([])
+            });
+        });
 
-        // Educational Comment: Mock the initial suggestions.
-        await page.route('/api/ledger/optimizations', async route => {
-            const json = [
-                {
-                    id: 'opt-1',
-                    title: 'Quick Fix',
-                    description: 'A quick optimization.',
-                    estimatedSavings: 10.0,
-                    status: 'pending'
-                }
-            ];
-            await route.fulfill({ json });
+        // Educational Comment: Mock the initial suggestions with correct data shape.
+        await page.route(/\/api\/ledger\/optimizations$/, async route => {
+            await route.fulfill({ 
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                    {
+                        id: 1,
+                        type: 'model_switch',
+                        title: 'Quick Fix',
+                        description: 'A quick optimization.',
+                        estimated_savings: 10.0,
+                        savings_unit: 'USD',
+                        target_flow_id: 'flow-1',
+                        apply_action: '{"action":"switch_model"}',
+                        status: 'pending'
+                    }
+                ])
+            });
         });
 
         // Educational Comment: Mock the apply action endpoint.
-        await page.route('/api/ledger/optimizations/opt-1/apply', async route => {
-            await route.fulfill({ status: 200, json: { success: true } });
+        await page.route(/\/api\/ledger\/optimizations\/1\/apply/, async route => {
+            await route.fulfill({ 
+                status: 200, 
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true }) 
+            });
         });
 
         await page.goto('/');
         await page.click('text=Dashboard');
+        
+        // Wait for data loading to complete
+        await page.waitForLoadState('networkidle');
 
         // Educational Comment: Find the "Apply" button for the specific card.
         const applyButton = page.getByRole('button', { name: 'Apply' }).first();
         await expect(applyButton).toBeVisible();
 
-        // Educational Comment: Click the button.
+        // Educational Comment: Click the button to open confirmation modal.
         await applyButton.click();
+        
+        // Click "Apply Changes" in the confirmation modal
+        await page.getByRole('button', { name: 'Apply Changes' }).click();
 
         // Educational Comment: Verify the button state changes to "Applied".
         await expect(page.getByRole('button', { name: 'Applied' })).toBeVisible();
