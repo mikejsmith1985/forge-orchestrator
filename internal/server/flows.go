@@ -128,11 +128,11 @@ func (s *Server) handleExecuteFlow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute the flow
-	// Educational Comment: We execute the flow synchronously here for simplicity.
-	// In a production environment, this should be offloaded to a background worker queue
-	// to avoid blocking the HTTP request for too long.
-	if err := flows.ExecuteFlow(id, s.db, s.gateway); err != nil {
+	// Create file signaler for fallback
+	fileSignaler, _ := flows.NewFileSignaler()
+
+	// Execute the flow with Hub integration for real-time broadcasts
+	if err := flows.ExecuteFlowWithHub(id, s.db, s.gateway, nil, fileSignaler, s.hub); err != nil {
 		http.Error(w, "Flow execution failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

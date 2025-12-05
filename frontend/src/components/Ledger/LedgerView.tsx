@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { OptimizationCard, type Suggestion } from './OptimizationCard';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 // Educational Comment: Defining the shape of our data ensures type safety throughout the component.
 interface LedgerEntry {
@@ -40,49 +41,92 @@ const mapLedgerEntry = (entry: ApiLedgerEntry): LedgerEntry => ({
     status: entry.status.toLowerCase() as 'success' | 'failed' | 'pending',
 });
 
+// Toast notification component
+function Toast({ message, type, onClose }: { message: string; type: 'info' | 'success' | 'error'; onClose: () => void }) {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 5000);
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+
+    return (
+        <div className={`${bgColor} text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2`} data-testid="toast">
+            <span>{message}</span>
+            <button onClick={onClose} className="ml-2 hover:opacity-80">&times;</button>
+        </div>
+    );
+}
+
 export function LedgerView() {
-    // Educational Comment: useState is a Hook that lets you add React state to function components.
-    // Here we store the ledger data and a loading state.
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [optimizations, setOptimizations] = useState<Suggestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: 'info' | 'success' | 'error' }>>([]);
 
-    // Educational Comment: useEffect is a Hook that lets you perform side effects in function components.
-    // The empty dependency array [] means this effect runs once after the initial render (like componentDidMount).
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Educational Comment: We're making parallel asynchronous network requests to fetch data.
-                // Promise.all allows us to wait for both requests to complete.
-                const [ledgerRes, optimizationsRes] = await Promise.all([
-                    fetch('/api/ledger'),
-                    fetch('/api/ledger/optimizations')
-                ]);
+    // WebSocket connection for real-time updates
+    const { lastMessage, isConnected } = useWebSocket('/ws');
 
-                if (!ledgerRes.ok) throw new Error('Failed to fetch ledger data');
-                // Note: We might want to handle optimization fetch failure gracefully without blocking the ledger view,
-                // but for now we'll treat it as a general error or just log it if we wanted to be more robust.
-                // Here we assume if one fails, we show the error.
-                if (!optimizationsRes.ok) throw new Error('Failed to fetch optimizations');
-
-                const ledgerData: ApiLedgerEntry[] = await ledgerRes.json();
-                const optimizationsData = await optimizationsRes.json();
-
-                // Educational Comment: Updating state triggers a re-render of the component with the new data.
-                // We map the API response to the frontend format
-                setEntries(ledgerData.map(mapLedgerEntry));
-                setOptimizations(optimizationsData);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'An unknown error occurred');
-            } finally {
-                // Educational Comment: This runs whether the request succeeds or fails, ensuring loading state is turned off.
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+    const addToast = useCallback((message: string, type: 'info' | 'success' | 'error') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
     }, []);
+
+    const removeToast = useCallback((id: number) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, []);
+
+    const fetchData = useCallback(async () => {
+        try {
+            const [ledgerRes, optimizationsRes] = await Promise.all([
+                fetch('/api/ledger'),
+                fetch('/api/ledger/optimizations')
+            ]);
+
+            if (!ledgerRes.ok) throw new Error('Failed to fetch ledger data');
+            if (!optimizationsRes.ok) throw new Error('Failed to fetch optimizations');
+
+            const ledgerData: ApiLedgerEntry[] = await ledgerRes.json();
+            const optimizationsData = await optimizationsRes.json();
+
+            setEntries(ledgerData.map(mapLedgerEntry));
+            setOptimizations(optimizationsData);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Initial data fetch
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // Handle WebSocket messages
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        const { type, payload } = lastMessage;
+
+        switch (type) {
+            case 'FLOW_STARTED':
+                addToast(`Flow ${payload.flowId} started`, 'info');
+                break;
+            case 'FLOW_COMPLETED':
+                addToast(`Flow ${payload.flowId} completed`, 'success');
+                fetchData(); // Refresh ledger
+                break;
+            case 'FLOW_FAILED':
+                addToast(`Flow ${payload.flowId} failed: ${payload.error}`, 'error');
+                fetchData(); // Refresh ledger to show failed entries
+                break;
+            case 'LEDGER_UPDATE':
+                fetchData(); // Refresh ledger on any update
+                break;
+        }
+    }, [lastMessage, addToast, fetchData]);
 
     // Educational Comment: This function handles the optimistic UI update pattern.
     // We update the local state immediately to reflect the change, while the API call happens.
@@ -115,6 +159,26 @@ export function LedgerView() {
 
     return (
         <div className="p-8 h-full overflow-auto" data-testid="ledger-view">
+            {/* Toast notifications */}
+            <div className="fixed top-4 right-4 z-50 flex flex-col gap-2" data-testid="toast-container">
+                {toasts.map(toast => (
+                    <Toast
+                        key={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => removeToast(toast.id)}
+                    />
+                ))}
+            </div>
+
+            {/* WebSocket connection indicator */}
+            <div className="flex items-center gap-2 mb-4">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-xs text-gray-400">
+                    {isConnected ? 'Live updates enabled' : 'Connecting...'}
+                </span>
+            </div>
+
             <h2 className="text-2xl font-bold mb-6 text-white">Token Ledger</h2>
 
             {/* Optimization Suggestions Section */}

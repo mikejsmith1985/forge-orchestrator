@@ -11,6 +11,11 @@ import (
 	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
 )
 
+// Broadcaster defines the interface for broadcasting messages to WebSocket clients
+type Broadcaster interface {
+	Broadcast(message []byte)
+}
+
 // Flow represents a flow definition from the database.
 type Flow struct {
 	ID        int       `json:"id"`
@@ -67,17 +72,35 @@ func notifyStatus(wsSignaler, fileSignaler Signaler, flowID int, status FlowStat
 
 // ExecuteFlowWithSignaling runs the flow with status signaling support
 func ExecuteFlowWithSignaling(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler) error {
-	// Notify flow started
+	return ExecuteFlowWithHub(flowID, db, gateway, wsSignaler, fileSignaler, nil)
+}
+
+// ExecuteFlowWithHub runs the flow with full Hub integration for real-time broadcasts
+func ExecuteFlowWithHub(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler, hub Broadcaster) error {
+	startTime := time.Now()
+
+	// Broadcast FLOW_STARTED
+	if hub != nil {
+		hub.Broadcast(NewFlowStartedMessage(flowID))
+	}
+
+	// Notify flow started (legacy signaler)
 	notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
 		FlowID:    flowID,
 		Status:    "RUNNING",
 		UpdatedAt: time.Now(),
 	})
 
-	err := executeFlowInternal(flowID, db, gateway, wsSignaler, fileSignaler)
+	err := executeFlowInternalWithHub(flowID, db, gateway, wsSignaler, fileSignaler, hub)
+
+	executionTime := time.Since(startTime).Milliseconds()
 
 	// Notify flow completed or failed
 	if err != nil {
+		// Broadcast FLOW_FAILED
+		if hub != nil {
+			hub.Broadcast(NewFlowFailedMessage(flowID, err.Error()))
+		}
 		notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
 			FlowID:    flowID,
 			Status:    "FAILED",
@@ -85,6 +108,11 @@ func ExecuteFlowWithSignaling(flowID int, db *sql.DB, gateway *llm.Gateway, wsSi
 			Error:     err.Error(),
 		})
 		return err
+	}
+
+	// Broadcast FLOW_COMPLETED
+	if hub != nil {
+		hub.Broadcast(NewFlowCompletedMessage(flowID, executionTime))
 	}
 
 	notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
@@ -96,8 +124,13 @@ func ExecuteFlowWithSignaling(flowID int, db *sql.DB, gateway *llm.Gateway, wsSi
 	return nil
 }
 
-// executeFlowInternal contains the core flow execution logic
+// executeFlowInternal contains the core flow execution logic (legacy version)
 func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler) error {
+	return executeFlowInternalWithHub(flowID, db, gateway, wsSignaler, fileSignaler, nil)
+}
+
+// executeFlowInternalWithHub contains the core flow execution logic with Hub broadcasting
+func executeFlowInternalWithHub(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler, hub Broadcaster) error {
 	// 1. Fetch flow data
 	var flowData string
 	query := `SELECT data FROM forge_flows WHERE id = ?`
@@ -113,14 +146,17 @@ func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignale
 	}
 
 	// 3. Execute nodes (Sequential for now)
-	// Educational Comment: We iterate through the nodes in the order they appear in the JSON.
-	// A more advanced implementation would use the Edges to determine execution order (DAG).
 	for _, node := range graph.Nodes {
 		if node.Type != "agent" {
 			continue // Skip non-agent nodes if any
 		}
 
-		// Notify node starting
+		// Broadcast NODE_STARTED
+		if hub != nil {
+			hub.Broadcast(NewNodeStartedMessage(flowID, node.ID, node.Data.Label))
+		}
+
+		// Notify node starting (legacy signaler)
 		notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
 			FlowID:    flowID,
 			Status:    "RUNNING",
@@ -132,13 +168,10 @@ func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignale
 		apiKey, err := security.GetAPIKey(node.Data.Provider)
 		if err != nil {
 			log.Printf("Error getting API key for provider %s: %v", node.Data.Provider, err)
-			// Log failure to ledger? Or just continue/fail?
-			// Let's fail the flow execution for now.
 			return fmt.Errorf("missing API key for provider %s: %w", node.Data.Provider, err)
 		}
 
 		// Execute Prompt
-		// We map the string provider from JSON to the ProviderType enum
 		providerType := llm.ProviderType(node.Data.Provider)
 
 		start := time.Now()
@@ -149,7 +182,7 @@ func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignale
 		var errMsg string
 		var inputTokens, outputTokens int
 		var cost float64
-		var promptHash string = "hash_placeholder" // In a real app, hash the prompt
+		var promptHash string = "hash_placeholder"
 
 		if err != nil {
 			status = "FAILED"
@@ -161,9 +194,12 @@ func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignale
 			cost = resp.Cost
 		}
 
+		// Broadcast NODE_COMPLETED (even if failed, we report the tokens used)
+		if hub != nil {
+			hub.Broadcast(NewNodeCompletedMessage(flowID, node.ID, inputTokens, outputTokens, cost))
+		}
+
 		// 4. Log to token_ledger
-		// Educational Comment: We log every execution step to the ledger for auditing and cost tracking.
-		// This is critical for understanding system behavior and managing expenses.
 		insertQuery := `
 			INSERT INTO token_ledger (
 				flow_id, model_used, agent_role, prompt_hash, 
@@ -172,8 +208,8 @@ func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignale
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		_, dbErr := db.Exec(insertQuery,
-			fmt.Sprintf("%d", flowID), // Use Flow ID as the tracking ID
-			node.Data.Provider,        // Using Provider as Model for now, or could be specific model name if available
+			fmt.Sprintf("%d", flowID),
+			node.Data.Provider,
 			node.Data.Role,
 			promptHash,
 			inputTokens,
@@ -185,7 +221,6 @@ func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignale
 		)
 		if dbErr != nil {
 			log.Printf("Failed to log to ledger: %v", dbErr)
-			// Don't fail the flow just because logging failed, but it's bad practice.
 		}
 
 		if err != nil {
