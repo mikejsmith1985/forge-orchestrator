@@ -8,6 +8,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", s.healthHandler)
 	mux.HandleFunc("/ws", s.websocketHandler)
+	// Execute endpoint - Contract 5 requirement.
+	// This calls the Executor interface to run shell commands.
+	mux.HandleFunc("POST /api/execute", s.handleExecute)
 	mux.HandleFunc("POST /api/ledger", s.handleCreateLedgerEntry)
 	mux.HandleFunc("GET /api/ledger", s.handleGetLedger)
 	mux.HandleFunc("POST /api/tokens/estimate", s.handleEstimateTokens)
