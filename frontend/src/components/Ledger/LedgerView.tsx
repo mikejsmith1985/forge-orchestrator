@@ -114,7 +114,7 @@ export function LedgerView() {
     }
 
     return (
-        <div className="p-8 h-full overflow-auto">
+        <div className="p-8 h-full overflow-auto" data-testid="ledger-view">
             <h2 className="text-2xl font-bold mb-6 text-white">Token Ledger</h2>
 
             {/* Optimization Suggestions Section */}

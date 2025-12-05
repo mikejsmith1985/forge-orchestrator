@@ -74,7 +74,7 @@ export function KeyManagement() {
     ];
 
     return (
-        <div className="p-6 max-w-4xl mx-auto text-white">
+        <div className="p-6 max-w-4xl mx-auto text-white" data-testid="settings-view">
             <div className="mb-8">
                 <h2 className="text-3xl font-bold flex items-center gap-3 mb-2">
                     <Key className="w-8 h-8 text-blue-400" />
