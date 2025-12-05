@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import ReactFlow, {
     ReactFlowProvider,
     addEdge,
@@ -14,14 +14,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Save, Play, ArrowLeft, Loader2, Check, AlertCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-// Agent role configuration with user-friendly labels
-const agentRoles = [
-    { value: 'Architect', label: 'Planner / Architect' },
-    { value: 'Implementation', label: 'Developer / Coder' },
-    { value: 'Test', label: 'QA / Tester' },
-    { value: 'Optimizer', label: 'Auditor / Optimizer' },
-];
+import AgentNode, { type AgentNodeData } from './AgentNode';
+import NodeConfigPanel from './NodeConfigPanel';
 
 // Initial nodes for a new flow
 const initialNodes: Node[] = [
@@ -47,11 +41,15 @@ const FlowEditorContent: React.FC = () => {
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
     
+    // Custom node types - memoized to prevent re-renders
+    const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
+    
     // Flow metadata
     const [flowName, setFlowName] = useState('New Flow');
     
-    // Selected node for configuration
-    const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+    // Selected node for configuration - show panel when a node is selected
+    const [selectedNode, setSelectedNode] = useState<Node<AgentNodeData> | null>(null);
+    const [showConfigPanel, setShowConfigPanel] = useState(false);
     
     // Loading states
     const [loadingFlow, setLoadingFlow] = useState(false);
@@ -127,11 +125,16 @@ const FlowEditorContent: React.FC = () => {
                 y: event.clientY,
             });
 
-            const newNode: Node = {
-                id: `${type}-${nodes.length + 1}`,
-                type,
+            // Use 'agent' type for default nodes to get custom AgentNode component
+            const nodeType = type === 'default' ? 'agent' : type;
+            const newNode: Node<AgentNodeData> = {
+                id: `${type}-${nodes.length + 1}-${Date.now()}`,
+                type: nodeType,
                 position,
-                data: { label: `${type} node`, role: 'Implementation' },
+                data: { 
+                    label: type === 'default' ? 'Agent Node' : `${type} node`,
+                    // Leave role, provider, prompt undefined so node shows as unconfigured
+                },
             };
 
             setNodes((nds) => nds.concat(newNode));
@@ -139,45 +142,34 @@ const FlowEditorContent: React.FC = () => {
         [reactFlowInstance, nodes, setNodes]
     );
 
-    // Handle node selection
-    const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    // Handle node selection - open config panel
+    const onNodeClick = useCallback((_: React.MouseEvent, node: Node<AgentNodeData>) => {
         setSelectedNode(node);
+        setShowConfigPanel(true);
     }, []);
 
     // Handle pane click to deselect
     const onPaneClick = useCallback(() => {
         setSelectedNode(null);
+        setShowConfigPanel(false);
     }, []);
 
-    // Update node role
-    const handleRoleChange = useCallback((nodeId: string, role: string) => {
-        setNodes((nds) =>
-            nds.map((node) =>
-                node.id === nodeId
-                    ? { ...node, data: { ...node.data, role } }
-                    : node
-            )
-        );
-        // Update selected node state
-        setSelectedNode((prev) => prev && prev.id === nodeId 
-            ? { ...prev, data: { ...prev.data, role } }
-            : prev
-        );
-    }, [setNodes]);
+    // Handle config panel close
+    const handleConfigClose = useCallback(() => {
+        setShowConfigPanel(false);
+    }, []);
 
-    // Update node label
-    const handleLabelChange = useCallback((nodeId: string, label: string) => {
+    // Handle node data save from config panel
+    const handleNodeSave = useCallback((nodeId: string, data: AgentNodeData) => {
         setNodes((nds) =>
             nds.map((node) =>
                 node.id === nodeId
-                    ? { ...node, data: { ...node.data, label } }
+                    ? { ...node, data: { ...node.data, ...data } }
                     : node
             )
         );
-        setSelectedNode((prev) => prev && prev.id === nodeId 
-            ? { ...prev, data: { ...prev.data, label } }
-            : prev
-        );
+        setSelectedNode(null);
+        setShowConfigPanel(false);
     }, [setNodes]);
 
     const handleSave = async () => {
@@ -351,6 +343,7 @@ const FlowEditorContent: React.FC = () => {
                                 event.dataTransfer.setData('application/reactflow', 'default')
                             }
                             draggable
+                            data-testid="agent-node-drag"
                         >
                             <div className="w-3 h-3 rounded-full bg-slate-400" />
                             <span className="text-sm text-white">Agent Node</span>
@@ -367,48 +360,10 @@ const FlowEditorContent: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Node Configuration Panel */}
-                    {selectedNode && (
-                        <div className="mt-4 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-                            <h4 className="text-sm font-semibold text-slate-300 mb-3">
-                                Node Configuration
-                            </h4>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="block text-xs text-slate-400 mb-1">
-                                        Label
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={selectedNode.data.label || ''}
-                                        onChange={(e) => handleLabelChange(selectedNode.id, e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-slate-400 mb-1">
-                                        Agent Role
-                                    </label>
-                                    <select
-                                        value={selectedNode.data.role || 'Implementation'}
-                                        onChange={(e) => handleRoleChange(selectedNode.id, e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        {agentRoles.map((role) => (
-                                            <option key={role.value} value={role.value}>
-                                                {role.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="mt-auto p-4 bg-slate-700/50 rounded-lg border border-slate-700">
                         <p className="text-xs text-slate-400">
                             {selectedNode 
-                                ? 'Configure the selected node above.'
+                                ? 'Click on a node to configure it.'
                                 : 'Drag components to the canvas to build your flow.'}
                         </p>
                     </div>
@@ -419,6 +374,7 @@ const FlowEditorContent: React.FC = () => {
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
+                        nodeTypes={nodeTypes}
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
                         onConnect={onConnect}
@@ -434,6 +390,15 @@ const FlowEditorContent: React.FC = () => {
                         <Background color="#334155" gap={16} />
                     </ReactFlow>
                 </div>
+
+                {/* Node Configuration Panel - slides in from right */}
+                {showConfigPanel && selectedNode && (
+                    <NodeConfigPanel
+                        node={selectedNode}
+                        onSave={handleNodeSave}
+                        onClose={handleConfigClose}
+                    />
+                )}
             </div>
         </div>
     );
