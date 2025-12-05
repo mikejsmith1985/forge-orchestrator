@@ -1,6 +1,6 @@
 {
   "flowId": 1,
   "status": "FAILED",
-  "updatedAt": "2025-12-05T12:19:35.926341001-05:00",
+  "updatedAt": "2025-12-05T12:22:14.246103339-05:00",
   "error": "failed to parse flow data: unexpected end of JSON input"
 }
