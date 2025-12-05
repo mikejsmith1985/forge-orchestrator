@@ -221,3 +221,149 @@ func TestHandleGetLedger(t *testing.T) {
 		t.Errorf("expected first entry to be flow-2, got %s", entries[0].FlowID)
 	}
 }
+
+// ========== ERROR HANDLING TESTS ==========
+
+func TestHandleCreateLedgerEntry_MalformedJSON(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewServer(db)
+	handler := s.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "malformed JSON",
+			body:       `{"flow_id": "test"`, // missing closing brace
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid JSON type",
+			body:       `{"input_tokens": "not a number"}`, // wrong type
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty body",
+			body:       ``,
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("POST", "/api/ledger", bytes.NewBufferString(tt.body))
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d", rr.Code, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestHandleGetLedger_InvalidLimit(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewServer(db)
+	handler := s.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+	}{
+		{
+			name:       "non-numeric limit",
+			query:      "?limit=abc",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+		{
+			name:       "negative limit",
+			query:      "?limit=-5",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+		{
+			name:       "zero limit",
+			query:      "?limit=0",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+		{
+			name:       "float limit",
+			query:      "?limit=5.5",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "/api/ledger"+tt.query, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d", rr.Code, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestHandleEstimateTokens_Errors(t *testing.T) {
+	s := &Server{}
+	handler := s.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "malformed JSON",
+			body:       `{"text": "hello`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty body",
+			body:       ``,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty text returns zero tokens",
+			body:       `{"text": ""}`,
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("POST", "/api/tokens/estimate", bytes.NewBufferString(tt.body))
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d, body: %s", rr.Code, tt.wantStatus, rr.Body.String())
+			}
+		})
+	}
+}

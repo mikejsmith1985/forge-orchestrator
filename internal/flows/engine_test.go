@@ -2,6 +2,7 @@ package flows
 
 import (
 	"database/sql"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // Use mattn/go-sqlite3
@@ -98,5 +99,211 @@ func TestExecuteFlow(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("Expected 1 ledger entry, got %d", count)
+	}
+}
+
+// ========== ERROR HANDLING TESTS ==========
+
+func TestExecuteFlow_EmptyNodes(t *testing.T) {
+	// Setup Mock Keyring
+	keyring.MockInit()
+
+	// Setup In-Memory DB
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize Schema
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatalf("Failed to init schema: %v", err)
+	}
+
+	// Insert Test Flow with empty nodes
+	flowJSON := `{"nodes": [], "edges": []}`
+	_, err = db.Exec(`INSERT INTO forge_flows (name, data, status) VALUES (?, ?, ?)`, "Empty Flow", flowJSON, "active")
+	if err != nil {
+		t.Fatalf("Failed to insert flow: %v", err)
+	}
+
+	// Setup Gateway
+	gateway := &llm.Gateway{
+		AnthropicClient: &MockLLMProvider{},
+		OpenAIClient:    &MockLLMProvider{},
+	}
+
+	// Execute Flow - should complete without error (nothing to do)
+	err = ExecuteFlow(1, db, gateway)
+	if err != nil {
+		t.Errorf("unexpected error for empty flow: %v", err)
+	}
+}
+
+func TestExecuteFlow_InvalidProvider(t *testing.T) {
+	// Setup Mock Keyring
+	keyring.MockInit()
+	err := security.SetAPIKey("InvalidProvider", "dummy-key")
+	if err != nil {
+		t.Fatalf("Failed to set mock API key: %v", err)
+	}
+
+	// Setup In-Memory DB
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize Schema
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatalf("Failed to init schema: %v", err)
+	}
+
+	// Insert Test Flow with invalid provider
+	flowJSON := `{
+		"nodes": [{
+			"id": "1",
+			"type": "agent",
+			"data": {
+				"label": "Test",
+				"role": "Implementation",
+				"prompt": "test",
+				"provider": "InvalidProvider"
+			}
+		}],
+		"edges": []
+	}`
+	_, err = db.Exec(`INSERT INTO forge_flows (name, data, status) VALUES (?, ?, ?)`, "Invalid Provider Flow", flowJSON, "active")
+	if err != nil {
+		t.Fatalf("Failed to insert flow: %v", err)
+	}
+
+	// Setup Gateway
+	gateway := llm.NewGateway()
+
+	// Execute Flow
+	err = ExecuteFlow(1, db, gateway)
+
+	// Should return error for unsupported provider
+	if err == nil {
+		t.Error("expected error for invalid provider, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "unsupported provider") {
+		t.Errorf("error should mention unsupported provider: %v", err)
+	}
+}
+
+func TestExecuteFlow_MissingAPIKey(t *testing.T) {
+	// Setup Mock Keyring - but DON'T set the API key
+	keyring.MockInit()
+
+	// Setup In-Memory DB
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize Schema
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatalf("Failed to init schema: %v", err)
+	}
+
+	// Insert Test Flow
+	flowJSON := `{
+		"nodes": [{
+			"id": "1",
+			"type": "agent",
+			"data": {
+				"label": "Coder",
+				"role": "Implementation",
+				"prompt": "test",
+				"provider": "Anthropic"
+			}
+		}],
+		"edges": []
+	}`
+	_, err = db.Exec(`INSERT INTO forge_flows (name, data, status) VALUES (?, ?, ?)`, "Missing Key Flow", flowJSON, "active")
+	if err != nil {
+		t.Fatalf("Failed to insert flow: %v", err)
+	}
+
+	// Setup Gateway
+	gateway := llm.NewGateway()
+
+	// Execute Flow
+	err = ExecuteFlow(1, db, gateway)
+
+	// Should return error for missing API key
+	if err == nil {
+		t.Error("expected error for missing API key, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "API key") {
+		t.Errorf("error should mention API key: %v", err)
+	}
+}
+
+func TestExecuteFlow_FlowNotFound(t *testing.T) {
+	// Setup In-Memory DB
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize Schema
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatalf("Failed to init schema: %v", err)
+	}
+
+	// Setup Gateway
+	gateway := llm.NewGateway()
+
+	// Execute non-existent Flow
+	err = ExecuteFlow(99999, db, gateway)
+
+	// Should return error for not found
+	if err == nil {
+		t.Error("expected error for non-existent flow, got nil")
+	}
+}
+
+func TestExecuteFlow_MalformedFlowData(t *testing.T) {
+	// Setup In-Memory DB
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize Schema
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatalf("Failed to init schema: %v", err)
+	}
+
+	// Insert malformed flow data
+	_, err = db.Exec(`INSERT INTO forge_flows (name, data, status) VALUES (?, ?, ?)`, "Malformed Flow", `{"nodes": [`, "active")
+	if err != nil {
+		t.Fatalf("Failed to insert flow: %v", err)
+	}
+
+	// Setup Gateway
+	gateway := llm.NewGateway()
+
+	// Execute Flow
+	err = ExecuteFlow(1, db, gateway)
+
+	// Should return error for malformed JSON
+	if err == nil {
+		t.Error("expected error for malformed flow data, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "parse") {
+		t.Errorf("error should mention parse failure: %v", err)
 	}
 }

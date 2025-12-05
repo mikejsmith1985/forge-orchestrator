@@ -272,3 +272,195 @@ func TestHandleRunCommand_LatencyTracking(t *testing.T) {
 	// Log the latency for informational purposes
 	t.Logf("Recorded latency: %d ms", latencyMs)
 }
+
+// ========== ERROR HANDLING TESTS ==========
+
+func TestHandleCreateCommand_Errors(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	server := NewServer(db)
+	handler := server.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "malformed JSON",
+			body:       `{"name": "test"`, // missing closing brace
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty name",
+			body:       `{"name": "", "command": "echo hello"}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty command",
+			body:       `{"name": "Test", "command": ""}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "SQL injection attempt in name",
+			body:       `{"name": "'; DROP TABLE command_cards; --", "command": "test"}`,
+			wantStatus: http.StatusCreated, // Should succeed but sanitized via parameterized query
+		},
+		{
+			name:       "SQL injection attempt in command",
+			body:       `{"name": "Test", "command": "'; DELETE FROM command_cards; --"}`,
+			wantStatus: http.StatusCreated, // Should succeed but sanitized via parameterized query
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("POST", "/api/commands",
+				bytes.NewBufferString(tt.body))
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d, body: %s", rr.Code, tt.wantStatus, rr.Body.String())
+			}
+		})
+	}
+
+	// Verify SQL injection didn't corrupt database - table should still exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM command_cards").Scan(&count)
+	if err != nil {
+		t.Errorf("Database corrupted after SQL injection test: %v", err)
+	}
+}
+
+func TestHandleDeleteCommand_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	server := NewServer(db)
+	handler := server.RegisterRoutes()
+
+	// Delete a non-existent ID
+	req, _ := http.NewRequest("DELETE", "/api/commands/99999", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should succeed (idempotent delete) with 204
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("expected 204 for idempotent delete, got %d", rr.Code)
+	}
+}
+
+func TestHandleDeleteCommand_InvalidID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	server := NewServer(db)
+	handler := server.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		id         string
+		wantStatus int
+	}{
+		{"non-numeric ID", "/api/commands/abc", http.StatusBadRequest},
+		{"float ID", "/api/commands/1.5", http.StatusBadRequest},
+		// Note: Negative IDs are parsed as valid integers and result in idempotent delete (204)
+		// This is acceptable behavior as no row exists with negative ID
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("DELETE", tt.id, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("expected %d for %s, got %d", tt.wantStatus, tt.name, rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleRunCommand_MissingAPIKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	res, _ := db.Exec("INSERT INTO command_cards (name, command, description) VALUES (?, ?, ?)", "Test", "echo", "Desc")
+	id, _ := res.LastInsertId()
+
+	server := NewServer(db)
+	handler := server.RegisterRoutes()
+
+	reqBody := map[string]string{
+		"agent_role": "Implementation",
+		"provider":   "OpenAI",
+	}
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "/api/commands/"+strconv.Itoa(int(id))+"/run", bytes.NewBuffer(body))
+	// Intentionally NOT setting X-Forge-Api-Key header
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for missing API key, got %d", rr.Code)
+	}
+}
+
+func TestHandleRunCommand_MissingFields(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	res, _ := db.Exec("INSERT INTO command_cards (name, command, description) VALUES (?, ?, ?)", "Test", "echo", "Desc")
+	id, _ := res.LastInsertId()
+
+	server := NewServer(db)
+	handler := server.RegisterRoutes()
+
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"missing agent_role", `{"provider": "OpenAI"}`},
+		{"missing provider", `{"agent_role": "Implementation"}`},
+		{"empty agent_role", `{"agent_role": "", "provider": "OpenAI"}`},
+		{"empty provider", `{"agent_role": "Implementation", "provider": ""}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("POST", "/api/commands/"+strconv.Itoa(int(id))+"/run",
+				bytes.NewBufferString(tt.body))
+			req.Header.Set("X-Forge-Api-Key", "test-key")
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected 400 for %s, got %d", tt.name, rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleRunCommand_CommandNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	server := NewServer(db)
+	handler := server.RegisterRoutes()
+
+	reqBody := map[string]string{
+		"agent_role": "Implementation",
+		"provider":   "OpenAI",
+	}
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "/api/commands/99999/run", bytes.NewBuffer(body))
+	req.Header.Set("X-Forge-Api-Key", "test-key")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for non-existent command, got %d", rr.Code)
+	}
+}
