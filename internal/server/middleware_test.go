@@ -128,6 +128,11 @@ func TestCORSMiddleware_PreflightRequest(t *testing.T) {
 	if rr.Header().Get("Access-Control-Allow-Methods") == "" {
 		t.Error("Expected Access-Control-Allow-Methods header to be set")
 	}
+
+	// Check Max-Age is set for caching preflight
+	if rr.Header().Get("Access-Control-Max-Age") != "86400" {
+		t.Errorf("Expected Access-Control-Max-Age to be 86400, got %s", rr.Header().Get("Access-Control-Max-Age"))
+	}
 }
 
 func TestCORSMiddleware_NoOrigin(t *testing.T) {
