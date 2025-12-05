@@ -28,14 +28,70 @@ func TestHandleEstimateTokens(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	var response map[string]int
+	var response map[string]interface{}
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
 
-	// "hello world" is 11 chars. 11 / 4 = 2 (integer division)
-	if count, ok := response["count"]; !ok || count != 2 {
-		t.Errorf("handler returned wrong token count: got %v want %v", count, 2)
+	// Check that count exists and is reasonable
+	count, ok := response["count"].(float64)
+	if !ok {
+		t.Error("response should contain 'count' field")
+	}
+	if count < 1 || count > 10 {
+		t.Errorf("handler returned unexpected token count: got %v, want 1-10", count)
+	}
+
+	// Check that method exists
+	method, ok := response["method"].(string)
+	if !ok {
+		t.Error("response should contain 'method' field")
+	}
+	if method != "tiktoken" && method != "heuristic" {
+		t.Errorf("handler returned unexpected method: got %v", method)
+	}
+
+	// Check that provider exists
+	provider, ok := response["provider"].(string)
+	if !ok {
+		t.Error("response should contain 'provider' field")
+	}
+	if provider != "openai" {
+		t.Errorf("handler returned unexpected provider: got %v, want 'openai' as default", provider)
+	}
+}
+
+func TestHandleEstimateTokensWithProvider(t *testing.T) {
+	s := &Server{}
+	handler := s.RegisterRoutes()
+
+	payload := map[string]string{
+		"text":     "hello world",
+		"provider": "anthropic",
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/api/tokens/estimate", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	provider, ok := response["provider"].(string)
+	if !ok || provider != "anthropic" {
+		t.Errorf("handler returned wrong provider: got %v want anthropic", provider)
+	}
+
+	method, ok := response["method"].(string)
+	if !ok || method != "heuristic" {
+		t.Errorf("handler should use heuristic for anthropic: got %v", method)
 	}
 }
 

@@ -48,12 +48,56 @@ type Edge struct {
 	Target string `json:"target"`
 }
 
-// ExecuteFlow runs the flow with the given ID.
-// Educational Comment: This function orchestrates the execution of a flow.
-// It fetches the flow definition, parses the graph, and executes nodes sequentially.
-// In a real-world scenario, this would handle topological sorting for parallel execution
-// and complex dependency management.
-func ExecuteFlow(flowID int, db *sql.DB, gateway *llm.Gateway) error {
+// notifyStatus sends status update via WebSocket with file fallback
+func notifyStatus(wsSignaler, fileSignaler Signaler, flowID int, status FlowStatus) {
+	// Always write to file for fallback polling
+	if fileSignaler != nil {
+		if err := fileSignaler.NotifyStatus(flowID, status); err != nil {
+			log.Printf("File signaler failed: %v", err)
+		}
+	}
+
+	// Try WebSocket notification
+	if wsSignaler != nil {
+		if err := wsSignaler.NotifyStatus(flowID, status); err != nil {
+			log.Printf("WebSocket notify failed, using file fallback: %v", err)
+		}
+	}
+}
+
+// ExecuteFlowWithSignaling runs the flow with status signaling support
+func ExecuteFlowWithSignaling(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler) error {
+	// Notify flow started
+	notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
+		FlowID:    flowID,
+		Status:    "RUNNING",
+		UpdatedAt: time.Now(),
+	})
+
+	err := executeFlowInternal(flowID, db, gateway, wsSignaler, fileSignaler)
+
+	// Notify flow completed or failed
+	if err != nil {
+		notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
+			FlowID:    flowID,
+			Status:    "FAILED",
+			UpdatedAt: time.Now(),
+			Error:     err.Error(),
+		})
+		return err
+	}
+
+	notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
+		FlowID:    flowID,
+		Status:    "COMPLETED",
+		UpdatedAt: time.Now(),
+	})
+
+	return nil
+}
+
+// executeFlowInternal contains the core flow execution logic
+func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler) error {
 	// 1. Fetch flow data
 	var flowData string
 	query := `SELECT data FROM forge_flows WHERE id = ?`
@@ -75,6 +119,14 @@ func ExecuteFlow(flowID int, db *sql.DB, gateway *llm.Gateway) error {
 		if node.Type != "agent" {
 			continue // Skip non-agent nodes if any
 		}
+
+		// Notify node starting
+		notifyStatus(wsSignaler, fileSignaler, flowID, FlowStatus{
+			FlowID:    flowID,
+			Status:    "RUNNING",
+			LastNode:  node.ID,
+			UpdatedAt: time.Now(),
+		})
 
 		// Get API Key
 		apiKey, err := security.GetAPIKey(node.Data.Provider)
@@ -142,4 +194,11 @@ func ExecuteFlow(flowID int, db *sql.DB, gateway *llm.Gateway) error {
 	}
 
 	return nil
+}
+
+// ExecuteFlow runs the flow with the given ID (backwards compatible version without signaling)
+func ExecuteFlow(flowID int, db *sql.DB, gateway *llm.Gateway) error {
+	// Create file signaler for basic status tracking
+	fileSignaler, _ := NewFileSignaler()
+	return ExecuteFlowWithSignaling(flowID, db, gateway, nil, fileSignaler)
 }

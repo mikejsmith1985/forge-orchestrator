@@ -1,15 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TokenMeter } from './TokenMeter';
+
+interface TokenEstimate {
+    count: number;
+    method: string;
+    provider: string;
+    model?: string;
+}
 
 /**
  * ArchitectView provides an interface for the "Forge Architect" input.
  * It includes a textarea for "Brain Dump" and a live TokenMeter.
- * Token count is approximated as 4 characters per token.
+ * Token estimation uses the backend API with tiktoken for accuracy.
  */
 export const ArchitectView: React.FC = () => {
     const [input, setInput] = useState('');
-    // Approximate token count: 4 characters = 1 token
-    const tokenCount = Math.ceil(input.length / 4);
+    const [tokenEstimate, setTokenEstimate] = useState<TokenEstimate>({
+        count: 0,
+        method: 'heuristic',
+        provider: 'openai'
+    });
+    const [provider] = useState('openai'); // Could be made configurable
+
+    // Debounced token estimation
+    const estimateTokens = useCallback(async (text: string) => {
+        if (!text.trim()) {
+            setTokenEstimate({ count: 0, method: 'heuristic', provider });
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/tokens/estimate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, provider })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setTokenEstimate(data);
+            } else {
+                // Fallback to local estimation
+                setTokenEstimate({
+                    count: Math.ceil(text.length / 4),
+                    method: 'fallback',
+                    provider
+                });
+            }
+        } catch {
+            // Fallback to local estimation on network error
+            setTokenEstimate({
+                count: Math.ceil(text.length / 4),
+                method: 'fallback',
+                provider
+            });
+        }
+    }, [provider]);
+
+    // Debounce API calls
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            estimateTokens(input);
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [input, estimateTokens]);
 
     return (
         <div className="flex flex-col h-full p-6 space-y-6 max-w-4xl mx-auto w-full">
@@ -32,7 +87,11 @@ export const ArchitectView: React.FC = () => {
                     />
                 </div>
 
-                <TokenMeter tokenCount={tokenCount} />
+                <TokenMeter 
+                    tokenCount={tokenEstimate.count}
+                    method={tokenEstimate.method}
+                    provider={tokenEstimate.provider}
+                />
             </div>
         </div>
     );

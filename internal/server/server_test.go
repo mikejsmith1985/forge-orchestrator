@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -72,5 +73,80 @@ func TestWebSocketHandler(t *testing.T) {
 	if string(p) != string(message) {
 		t.Errorf("handler returned unexpected message: got %v want %v",
 			string(p), string(message))
+	}
+}
+
+func TestHubRegisterUnregister(t *testing.T) {
+	hub := NewHub()
+	go hub.Run()
+
+	// Create a mock client
+	mockConn := &websocket.Conn{}
+	client := &Client{
+		hub:  hub,
+		conn: mockConn,
+		send: make(chan []byte, 256),
+	}
+
+	// Register client
+	hub.register <- client
+
+	// Give time for registration to process
+	<-time.After(100 * time.Millisecond)
+	
+	hub.mu.RLock()
+	if !hub.clients[client] {
+		t.Error("Client was not registered")
+	}
+	hub.mu.RUnlock()
+
+	// Unregister client
+	hub.unregister <- client
+
+	// Give time for unregistration to process
+	<-time.After(100 * time.Millisecond)
+	
+	hub.mu.RLock()
+	if hub.clients[client] {
+		t.Error("Client was not unregistered")
+	}
+	hub.mu.RUnlock()
+}
+
+func TestHubBroadcast(t *testing.T) {
+	hub := NewHub()
+	go hub.Run()
+
+	// Create two mock clients
+	client1 := &Client{
+		hub:  hub,
+		send: make(chan []byte, 256),
+	}
+	client2 := &Client{
+		hub:  hub,
+		send: make(chan []byte, 256),
+	}
+
+	// Register both clients
+	hub.register <- client1
+	hub.register <- client2
+
+	// Give time for registration to process
+	<-time.After(100 * time.Millisecond)
+
+	// Broadcast a message
+	testMessage := []byte("test broadcast")
+	hub.Broadcast(testMessage)
+
+	// Both clients should receive the message
+	msg1 := <-client1.send
+	msg2 := <-client2.send
+
+	if string(msg1) != string(testMessage) {
+		t.Errorf("Client 1 received wrong message: got %v want %v", string(msg1), string(testMessage))
+	}
+
+	if string(msg2) != string(testMessage) {
+		t.Errorf("Client 2 received wrong message: got %v want %v", string(msg2), string(testMessage))
 	}
 }

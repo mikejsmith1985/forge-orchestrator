@@ -32,6 +32,27 @@ func (s *Server) handleGetFlows(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
+// handleGetFlow retrieves a single flow by ID.
+func (s *Server) handleGetFlow(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	query := `SELECT id, name, data, status, created_at FROM forge_flows WHERE id = ?`
+	var f flows.Flow
+	err = s.db.QueryRow(query, id).Scan(&f.ID, &f.Name, &f.Data, &f.Status, &f.CreatedAt)
+	if err != nil {
+		http.Error(w, "Flow not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(f)
+}
+
 // handleCreateFlow creates a new flow.
 func (s *Server) handleCreateFlow(w http.ResponseWriter, r *http.Request) {
 	var f flows.Flow

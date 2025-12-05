@@ -29,6 +29,21 @@ func setupTestDB(t *testing.T) *sql.DB {
 		status TEXT NOT NULL,
 		error_message TEXT
 	);
+
+	CREATE TABLE IF NOT EXISTS optimization_suggestions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		description TEXT NOT NULL,
+		estimated_savings REAL NOT NULL,
+		savings_unit TEXT NOT NULL,
+		target_flow_id TEXT,
+		target_command_id INTEGER,
+		apply_action TEXT NOT NULL,
+		status TEXT DEFAULT 'pending',
+		applied_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 	_, err = db.Exec(schema)
 	if err != nil {

@@ -10,8 +10,35 @@ interface LedgerEntry {
     inputTokens: number;
     outputTokens: number;
     cost: number;
+    latencyMs: number;
     status: 'success' | 'failed' | 'pending';
 }
+
+// API response shape (snake_case from Go backend)
+interface ApiLedgerEntry {
+    id: number;
+    timestamp: string;
+    flow_id: string;
+    model_used: string;
+    input_tokens: number;
+    output_tokens: number;
+    total_cost_usd: number;
+    latency_ms: number;
+    status: string;
+}
+
+// Transform API response to frontend format
+const mapLedgerEntry = (entry: ApiLedgerEntry): LedgerEntry => ({
+    id: String(entry.id),
+    timestamp: entry.timestamp,
+    flowId: entry.flow_id,
+    model: entry.model_used,
+    inputTokens: entry.input_tokens,
+    outputTokens: entry.output_tokens,
+    cost: entry.total_cost_usd,
+    latencyMs: entry.latency_ms ?? 0,
+    status: entry.status.toLowerCase() as 'success' | 'failed' | 'pending',
+});
 
 export function LedgerView() {
     // Educational Comment: useState is a Hook that lets you add React state to function components.
@@ -39,11 +66,12 @@ export function LedgerView() {
                 // Here we assume if one fails, we show the error.
                 if (!optimizationsRes.ok) throw new Error('Failed to fetch optimizations');
 
-                const ledgerData = await ledgerRes.json();
+                const ledgerData: ApiLedgerEntry[] = await ledgerRes.json();
                 const optimizationsData = await optimizationsRes.json();
 
                 // Educational Comment: Updating state triggers a re-render of the component with the new data.
-                setEntries(ledgerData);
+                // We map the API response to the frontend format
+                setEntries(ledgerData.map(mapLedgerEntry));
                 setOptimizations(optimizationsData);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -59,7 +87,7 @@ export function LedgerView() {
     // Educational Comment: This function handles the optimistic UI update pattern.
     // We update the local state immediately to reflect the change, while the API call happens.
     // In this specific case, we wait for the API call to succeed before updating the status to 'applied'.
-    const handleApplyOptimization = async (id: string) => {
+    const handleApplyOptimization = async (id: number) => {
         const response = await fetch(`/api/ledger/optimizations/${id}/apply`, {
             method: 'POST',
         });
@@ -70,7 +98,7 @@ export function LedgerView() {
 
         // Update the local state to reflect the applied status
         setOptimizations(prev => prev.map(opt =>
-            opt.id === id ? { ...opt, status: 'applied' } : opt
+            opt.id === id ? { ...opt, status: 'applied' as const } : opt
         ));
 
         // Optionally refetch ledger to show updated costs/entries if the optimization affects past entries immediately
@@ -114,6 +142,7 @@ export function LedgerView() {
                             <th className="px-6 py-4">Model</th>
                             <th className="px-6 py-4 text-right">Input Tokens</th>
                             <th className="px-6 py-4 text-right">Output Tokens</th>
+                            <th className="px-6 py-4 text-right">Latency</th>
                             <th className="px-6 py-4 text-right">Cost ($)</th>
                             <th className="px-6 py-4">Status</th>
                         </tr>
@@ -132,6 +161,16 @@ export function LedgerView() {
                                 </td>
                                 <td className="px-6 py-4 text-right font-mono">{entry.inputTokens}</td>
                                 <td className="px-6 py-4 text-right font-mono">{entry.outputTokens}</td>
+                                <td className="px-6 py-4 text-right font-mono">
+                                    <span className={
+                                        entry.latencyMs < 1000 ? 'text-green-400' :
+                                        entry.latencyMs < 5000 ? 'text-yellow-400' : 'text-red-400'
+                                    }>
+                                        {entry.latencyMs < 1000 
+                                            ? `${entry.latencyMs}ms` 
+                                            : `${(entry.latencyMs / 1000).toFixed(2)}s`}
+                                    </span>
+                                </td>
                                 <td className="px-6 py-4 text-right font-mono text-green-400">
                                     ${entry.cost.toFixed(4)}
                                 </td>
@@ -147,7 +186,7 @@ export function LedgerView() {
                         ))}
                         {entries.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                                     No ledger entries found
                                 </td>
                             </tr>
