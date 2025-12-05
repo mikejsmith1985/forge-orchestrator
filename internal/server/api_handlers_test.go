@@ -23,7 +23,7 @@ func TestHandleExecuteSuccess(t *testing.T) {
 	tempDB := "test_api_execute.db"
 	defer os.Remove(tempDB)
 
-	db, err := sql.Open("sqlite3", tempDB)
+	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestHandleExecuteWithFailedCommand(t *testing.T) {
 	tempDB := "test_api_execute_failed.db"
 	defer os.Remove(tempDB)
 
-	db, err := sql.Open("sqlite3", tempDB)
+	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestHandleExecuteWithEmptyCommand(t *testing.T) {
 	tempDB := "test_api_execute_empty.db"
 	defer os.Remove(tempDB)
 
-	db, err := sql.Open("sqlite3", tempDB)
+	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestHandleExecuteMethodNotAllowed(t *testing.T) {
 	tempDB := "test_api_execute_method.db"
 	defer os.Remove(tempDB)
 
-	db, err := sql.Open("sqlite3", tempDB)
+	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestRouterHasExecuteEndpoint(t *testing.T) {
 	tempDB := "test_router_execute.db"
 	defer os.Remove(tempDB)
 
-	db, err := sql.Open("sqlite3", tempDB)
+	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}

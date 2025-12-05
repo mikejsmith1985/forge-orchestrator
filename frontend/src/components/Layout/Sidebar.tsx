@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit, Workflow } from 'lucide-react';
+import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit, Workflow, Download } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-export function Sidebar() {
+interface SidebarProps {
+    currentVersion?: string;
+    hasUpdate?: boolean;
+    onUpdateClick?: () => void;
+}
+
+export function Sidebar({ currentVersion, hasUpdate, onUpdateClick }: SidebarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
@@ -76,10 +82,33 @@ export function Sidebar() {
                     </nav>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-white/10">
-                        <div className="flex items-center px-4 py-3 text-sm text-gray-400">
-                            <div className="w-2 h-2 mr-2 bg-green-500 rounded-full animate-pulse" />
-                            System Online
+                    <div className="p-4 border-t border-white/10 space-y-3">
+                        {/* Update Available Button */}
+                        {hasUpdate && (
+                            <button
+                                onClick={onUpdateClick}
+                                className="flex items-center w-full px-4 py-2 bg-purple-600/30 border border-purple-500 rounded-lg text-purple-200 hover:bg-purple-600/50 transition-colors text-sm"
+                            >
+                                <Download size={16} className="mr-2" />
+                                Update Available
+                            </button>
+                        )}
+
+                        {/* Status and Version */}
+                        <div className="flex items-center justify-between px-4 py-2 text-sm text-gray-400">
+                            <div className="flex items-center">
+                                <div className="w-2 h-2 mr-2 bg-green-500 rounded-full animate-pulse" />
+                                Online
+                            </div>
+                            {currentVersion && (
+                                <span 
+                                    className="font-mono text-xs cursor-pointer hover:text-gray-300"
+                                    onClick={onUpdateClick}
+                                    title="Click to check for updates"
+                                >
+                                    v{currentVersion}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

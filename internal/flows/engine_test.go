@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3" // Use mattn/go-sqlite3
+	_ "modernc.org/sqlite" // Use mattn/go-sqlite3
 	"github.com/mikejsmith1985/forge-orchestrator/internal/data"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/llm"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
@@ -35,7 +35,7 @@ func TestExecuteFlow(t *testing.T) {
 	}
 
 	// 2. Setup In-Memory DB
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory db: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestExecuteFlow_EmptyNodes(t *testing.T) {
 	keyring.MockInit()
 
 	// Setup In-Memory DB
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory db: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestExecuteFlow_InvalidProvider(t *testing.T) {
 	}
 
 	// Setup In-Memory DB
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory db: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestExecuteFlow_MissingAPIKey(t *testing.T) {
 	keyring.MockInit()
 
 	// Setup In-Memory DB
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory db: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestExecuteFlow_MissingAPIKey(t *testing.T) {
 
 func TestExecuteFlow_FlowNotFound(t *testing.T) {
 	// Setup In-Memory DB
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory db: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestExecuteFlow_FlowNotFound(t *testing.T) {
 
 func TestExecuteFlow_MalformedFlowData(t *testing.T) {
 	// Setup In-Memory DB
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory db: %v", err)
 	}

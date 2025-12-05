@@ -9,7 +9,7 @@ import (
 
 	"github.com/mikejsmith1985/forge-orchestrator/internal/data"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/server"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var testServer *httptest.Server
@@ -21,7 +21,7 @@ var testDB *sql.DB
 func TestMain(m *testing.M) {
 	// Setup in-memory SQLite database
 	var err error
-	testDB, err = sql.Open("sqlite3", ":memory:")
+	testDB, err = sql.Open("sqlite", ":memory:")
 	if err != nil {
 		fmt.Printf("Failed to open in-memory database: %v\n", err)
 		os.Exit(1)

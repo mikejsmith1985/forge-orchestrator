@@ -6,9 +6,9 @@ import (
 	"database/sql"
 	"os"
 
-	// Import the SQLite driver. The underscore means we only want the driver to register itself.
-	// We don't use the package directly - it just needs to be available for database/sql.
-	_ "github.com/mattn/go-sqlite3"
+	// Import the pure-Go SQLite driver. This allows cross-compilation without CGO.
+	// The underscore means we only want the driver to register itself.
+	_ "modernc.org/sqlite"
 )
 
 // DB is the database connection that can be used throughout the application.
@@ -22,7 +22,7 @@ func Connect(dbPath string) (*sql.DB, error) {
 	// sql.Open prepares a connection to the database.
 	// "sqlite3" tells Go which type of database we're connecting to.
 	// dbPath is the file path where our data will be stored.
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/data"
 )
 
@@ -96,7 +96,7 @@ func TestHandleEstimateTokensWithProvider(t *testing.T) {
 }
 
 func TestHandleCreateLedgerEntry(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestHandleCreateLedgerEntry(t *testing.T) {
 }
 
 func TestHandleGetLedger(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestHandleGetLedger(t *testing.T) {
 // ========== ERROR HANDLING TESTS ==========
 
 func TestHandleCreateLedgerEntry_MalformedJSON(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +275,7 @@ func TestHandleCreateLedgerEntry_MalformedJSON(t *testing.T) {
 }
 
 func TestHandleGetLedger_InvalidLimit(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

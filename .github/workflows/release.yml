@@ -23,7 +23,7 @@ jobs:
           go-version: '1.23'
 
       - name: Run Go Unit Tests
-        run: go test ./internal/... -v
+        run: go test ./internal/... -v -short
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,6 +50,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -71,27 +79,32 @@ jobs:
           GOOS: linux
           GOARCH: amd64
           CGO_ENABLED: 0
-        run: go build -ldflags="-s -w" -o forge-orchestrator-linux-amd64 main.go
+        run: |
+          go build -ldflags="-s -w -X github.com/mikejsmith1985/forge-orchestrator/internal/updater.Version=${{ steps.version.outputs.VERSION }}" \
+            -o forge-orchestrator-linux-amd64 .
 
       - name: Build macOS amd64
         env:
           GOOS: darwin
           GOARCH: amd64
           CGO_ENABLED: 0
-        run: go build -ldflags="-s -w" -o forge-orchestrator-darwin-amd64 main.go
+        run: |
+          go build -ldflags="-s -w -X github.com/mikejsmith1985/forge-orchestrator/internal/updater.Version=${{ steps.version.outputs.VERSION }}" \
+            -o forge-orchestrator-darwin-amd64 .
 
-      - name: Build Windows amd64
+      - name: Build Windows amd64 (GUI mode)
         env:
           GOOS: windows
           GOARCH: amd64
           CGO_ENABLED: 0
-        run: go build -ldflags="-s -w" -o forge-orchestrator-windows-amd64.exe main.go
+        run: |
+          go build -ldflags="-s -w -H windowsgui -X github.com/mikejsmith1985/forge-orchestrator/internal/updater.Version=${{ steps.version.outputs.VERSION }}" \
+            -o forge-orchestrator-windows-amd64.exe .
 
       - name: Generate Release Notes
-        id: notes
         run: |
           cat > release_notes.md << 'NOTES'
-          ## Forge Orchestrator Release
+          ## Forge Orchestrator v${{ steps.version.outputs.VERSION }}
 
           ### Download
           | Platform | Binary |
@@ -106,18 +119,28 @@ jobs:
           chmod +x forge-orchestrator-*
           ./forge-orchestrator-linux-amd64
 
-          # Windows
+          # Windows - just double-click or run:
           forge-orchestrator-windows-amd64.exe
           ```
-          Then open http://localhost:8080 in your browser.
+          The app will automatically open http://localhost:8080 in your browser.
 
           ### Features
           - Single binary with embedded React frontend
+          - Auto-opens browser on startup
+          - In-app update notifications with one-click updates
           - LLM Gateway supporting Anthropic and OpenAI
           - Token usage ledger with cost tracking
           - Flow-based workflow orchestration
           - Real-time WebSocket updates
           - Secure API key storage via OS keyring
+          - Configurable shell (Bash, CMD, PowerShell, WSL)
+
+          ### Configuration
+          - Config stored in:
+            - Windows: `%APPDATA%\forge-orchestrator\config.json`
+            - macOS: `~/Library/Application Support/forge-orchestrator/config.json`
+            - Linux: `~/.config/forge-orchestrator/config.json`
+          - Database stored in platform-specific data directory
 
           NOTES
 
