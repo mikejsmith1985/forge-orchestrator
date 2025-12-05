@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+
+	"github.com/mikejsmith1985/forge-orchestrator/internal/tokenizer"
 )
 
 // LedgerEntry represents a row in the token_ledger table.
@@ -53,21 +55,24 @@ func (s *Server) handleCreateLedgerEntry(w http.ResponseWriter, r *http.Request)
 }
 
 // handleEstimateTokens estimates the number of tokens in a given text string.
-// It uses a simple approximation: len(text) / 4.
+// It uses tiktoken for accurate OpenAI tokenization or falls back to heuristic
+// for other providers.
 func (s *Server) handleEstimateTokens(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Text string `json:"text"`
+		Text     string `json:"text"`
+		Provider string `json:"provider"`
+		Model    string `json:"model"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Simple approximation: len(text) / 4
-	count := len(req.Text) / 4
+	estimator := tokenizer.NewEstimator()
+	result := estimator.Estimate(req.Text, req.Provider, req.Model)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"count": count})
+	json.NewEncoder(w).Encode(result)
 }
 
 // handleGetLedger retrieves the history of agent executions.

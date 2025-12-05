@@ -31,6 +31,31 @@ func setupTestServer(t *testing.T) *Server {
 		status TEXT NOT NULL,
 		error_message TEXT
 	);
+
+	CREATE TABLE IF NOT EXISTS optimization_suggestions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		description TEXT NOT NULL,
+		estimated_savings REAL NOT NULL,
+		savings_unit TEXT NOT NULL,
+		target_flow_id TEXT,
+		target_command_id INTEGER,
+		apply_action TEXT NOT NULL,
+		status TEXT DEFAULT 'pending',
+		applied_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS forge_flows (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		description TEXT,
+		data TEXT NOT NULL,
+		status TEXT DEFAULT 'draft',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 	_, err = db.Exec(schema)
 	if err != nil {
@@ -84,9 +109,23 @@ func TestHandleApplyOptimization(t *testing.T) {
 	server := setupTestServer(t)
 	defer server.db.Close()
 
-	// Note: Testing PathValue in unit tests requires Go 1.22+ and using the actual ServeMux
-	// or mocking the request context. Since we are using standard http.HandlerFunc here,
-	// PathValue won't be populated unless we route through the mux.
+	// Create a test flow that we can apply optimization to
+	_, err := server.db.Exec(`
+		INSERT INTO forge_flows (name, data, status) 
+		VALUES ('Test Flow', '{"nodes":[{"id":"1","type":"input","data":{"label":"Start","provider":"gpt-4"}}],"edges":[]}', 'active')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create test flow: %v", err)
+	}
+
+	// Create a suggestion in the database
+	_, err = server.db.Exec(`
+		INSERT INTO optimization_suggestions (type, title, description, estimated_savings, savings_unit, target_flow_id, apply_action, status)
+		VALUES ('model_switch', 'Switch model', 'Test', 0.05, 'USD', '1', '{"action":"switch_model","from_model":"gpt-4","to_model":"gpt-3.5-turbo","flow_id":"1"}', 'pending')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create suggestion: %v", err)
+	}
 
 	mux := server.RegisterRoutes()
 	req, _ := http.NewRequest("POST", "/api/ledger/optimizations/1/apply", nil)
@@ -95,17 +134,17 @@ func TestHandleApplyOptimization(t *testing.T) {
 	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("handler returned wrong status code: got %v want %v. Body: %s", status, http.StatusOK, rr.Body.String())
 	}
 
-	// Verify ledger update
-	var count int
-	err := server.db.QueryRow("SELECT COUNT(*) FROM token_ledger WHERE status = 'OPTIMIZED'").Scan(&count)
+	// Verify suggestion is marked as applied
+	var suggestionStatus string
+	err = server.db.QueryRow("SELECT status FROM optimization_suggestions WHERE id = 1").Scan(&suggestionStatus)
 	if err != nil {
-		t.Fatalf("Failed to query ledger: %v", err)
+		t.Fatalf("Failed to query suggestion: %v", err)
 	}
 
-	if count != 1 {
-		t.Errorf("Expected 1 optimized entry, got %d", count)
+	if suggestionStatus != "applied" {
+		t.Errorf("Expected suggestion status 'applied', got '%s'", suggestionStatus)
 	}
 }

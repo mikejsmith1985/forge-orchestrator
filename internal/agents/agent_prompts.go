@@ -1,6 +1,9 @@
 package agents
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // --- Agent Persona Definitions ---
 
@@ -45,7 +48,9 @@ Suggestion must be concrete (e.g., 'Change prompt to use JSON instead of Markdow
 
 // GetAgentPrompt retrieves the correct prompt string based on the agent's role.
 func GetAgentPrompt(role string) (string, error) {
-	switch role {
+	resolvedRole := resolveRole(role)
+
+	switch resolvedRole {
 	case "Architect":
 		return SystemPromptArchitect, nil
 	case "Implementation":
@@ -57,4 +62,54 @@ func GetAgentPrompt(role string) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown agent role: %s", role)
 	}
+}
+
+// roleAliases maps informal/alternative role names to canonical names
+var roleAliases = map[string]string{
+	"planner":   "Architect",
+	"coder":     "Implementation",
+	"developer": "Implementation",
+	"dev":       "Implementation",
+	"tester":    "Test",
+	"qa":        "Test",
+	"auditor":   "Optimizer",
+	"optimizer": "Optimizer",
+}
+
+// canonicalRoles contains the list of valid canonical role names
+var canonicalRoles = []string{"Architect", "Implementation", "Test", "Optimizer"}
+
+// resolveRole converts an alias or informal role name to its canonical form.
+// It handles case-insensitive matching for both aliases and canonical names.
+func resolveRole(role string) string {
+	trimmed := strings.TrimSpace(role)
+	normalized := strings.ToLower(trimmed)
+
+	// Check if it's an alias
+	if canonical, ok := roleAliases[normalized]; ok {
+		return canonical
+	}
+
+	// Check if it's already a canonical name (case-insensitive)
+	for _, name := range canonicalRoles {
+		if strings.EqualFold(trimmed, name) {
+			return name
+		}
+	}
+
+	return role // Return as-is, GetAgentPrompt will error
+}
+
+// GetCanonicalRoles returns the list of valid canonical role names
+func GetCanonicalRoles() []string {
+	return canonicalRoles
+}
+
+// GetRoleAliases returns a copy of the role aliases map
+func GetRoleAliases() map[string]string {
+	aliases := make(map[string]string)
+	for k, v := range roleAliases {
+		aliases[k] = v
+	}
+	return aliases
 }

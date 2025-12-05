@@ -11,35 +11,31 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for now
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // Same-origin requests don't send Origin header
+		}
+		allowed := IsAllowedOrigin(origin)
+		if !allowed {
+			log.Printf("WebSocket: Blocked connection from origin: %s", origin)
+		}
+		return allowed
 	},
 }
 
 // handleWebSocket upgrades the HTTP connection to a WebSocket connection
-// and handles the client communication.
+// and handles the client communication using the Hub pattern.
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("upgrade:", err)
 		return
 	}
-	defer conn.Close()
 
-	// For now, we just echo messages back
-	for {
-		mt, message, err := conn.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-		log.Printf("recv: %s", message)
-		err = conn.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-	}
+	client := NewClient(s.hub, conn)
+	s.hub.register <- client
+
+	// Start goroutines for reading and writing
+	go client.writePump()
+	go client.readPump()
 }
-
-// TODO: In the future, we will implement a Client struct and a Hub/Pool to manage connections.
-// For this task, a simple echo is sufficient as per requirements.

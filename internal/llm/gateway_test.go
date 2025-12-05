@@ -2,6 +2,7 @@ package llm
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/mikejsmith1985/forge-orchestrator/internal/agents"
@@ -92,5 +93,91 @@ func TestExecutePrompt_InvalidRole(t *testing.T) {
 	_, err := gateway.ExecutePrompt("InvalidRole", "hello", "key", ProviderAnthropic)
 	if err == nil {
 		t.Error("expected error for invalid role, got nil")
+	}
+}
+
+// ========== ERROR HANDLING TESTS ==========
+
+func TestExecutePrompt_UnsupportedProvider(t *testing.T) {
+	gateway := NewGateway()
+	_, err := gateway.ExecutePrompt("Architect", "hello", "key", ProviderType("UnsupportedProvider"))
+	if err == nil {
+		t.Error("expected error for unsupported provider, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "unsupported provider") {
+		t.Errorf("error should mention unsupported provider: %v", err)
+	}
+}
+
+func TestExecutePrompt_ProviderError(t *testing.T) {
+	mockProvider := &MockProvider{
+		SendFunc: func(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
+			return "", 0, 0, errors.New("network timeout")
+		},
+	}
+
+	gateway := &Gateway{
+		AnthropicClient: mockProvider,
+		OpenAIClient:    mockProvider,
+	}
+
+	_, err := gateway.ExecutePrompt("Architect", "hello", "key", ProviderAnthropic)
+	if err == nil {
+		t.Error("expected error from provider, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "network timeout") {
+		t.Errorf("error should contain provider error: %v", err)
+	}
+}
+
+func TestExecutePrompt_InvalidAPIKey(t *testing.T) {
+	mockProvider := &MockProvider{
+		SendFunc: func(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
+			if apiKey == "" {
+				return "", 0, 0, errors.New("invalid API key")
+			}
+			return "response", 10, 20, nil
+		},
+	}
+
+	gateway := &Gateway{
+		AnthropicClient: mockProvider,
+		OpenAIClient:    mockProvider,
+	}
+
+	_, err := gateway.ExecutePrompt("Architect", "hello", "", ProviderAnthropic)
+	if err == nil {
+		t.Error("expected error for empty API key, got nil")
+	}
+}
+
+func TestExecutePrompt_EmptyPrompt(t *testing.T) {
+	mockProvider := &MockProvider{
+		SendFunc: func(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
+			// Should handle empty prompt gracefully
+			return "response", 0, 5, nil
+		},
+	}
+
+	gateway := &Gateway{
+		AnthropicClient: mockProvider,
+		OpenAIClient:    mockProvider,
+	}
+
+	// Empty prompt should still succeed (edge case but valid)
+	resp, err := gateway.ExecutePrompt("Architect", "", "key", ProviderAnthropic)
+	if err != nil {
+		t.Errorf("unexpected error for empty prompt: %v", err)
+	}
+	if resp == nil {
+		t.Error("response should not be nil")
+	}
+}
+
+func TestCalculateCost_UnknownProvider(t *testing.T) {
+	// Test that unknown provider returns zero cost (doesn't panic)
+	cost := calculateCost(ProviderType("Unknown"), 1000, 1000)
+	if cost != 0 {
+		t.Errorf("expected 0 cost for unknown provider, got %f", cost)
 	}
 }

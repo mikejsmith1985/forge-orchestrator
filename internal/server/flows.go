@@ -32,6 +32,27 @@ func (s *Server) handleGetFlows(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
+// handleGetFlow retrieves a single flow by ID.
+func (s *Server) handleGetFlow(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	query := `SELECT id, name, data, status, created_at FROM forge_flows WHERE id = ?`
+	var f flows.Flow
+	err = s.db.QueryRow(query, id).Scan(&f.ID, &f.Name, &f.Data, &f.Status, &f.CreatedAt)
+	if err != nil {
+		http.Error(w, "Flow not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(f)
+}
+
 // handleCreateFlow creates a new flow.
 func (s *Server) handleCreateFlow(w http.ResponseWriter, r *http.Request) {
 	var f flows.Flow
@@ -107,11 +128,11 @@ func (s *Server) handleExecuteFlow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute the flow
-	// Educational Comment: We execute the flow synchronously here for simplicity.
-	// In a production environment, this should be offloaded to a background worker queue
-	// to avoid blocking the HTTP request for too long.
-	if err := flows.ExecuteFlow(id, s.db, s.gateway); err != nil {
+	// Create file signaler for fallback
+	fileSignaler, _ := flows.NewFileSignaler()
+
+	// Execute the flow with Hub integration for real-time broadcasts
+	if err := flows.ExecuteFlowWithHub(id, s.db, s.gateway, nil, fileSignaler, s.hub); err != nil {
 		http.Error(w, "Flow execution failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

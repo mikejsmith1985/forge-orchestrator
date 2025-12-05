@@ -28,14 +28,70 @@ func TestHandleEstimateTokens(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	var response map[string]int
+	var response map[string]interface{}
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
 
-	// "hello world" is 11 chars. 11 / 4 = 2 (integer division)
-	if count, ok := response["count"]; !ok || count != 2 {
-		t.Errorf("handler returned wrong token count: got %v want %v", count, 2)
+	// Check that count exists and is reasonable
+	count, ok := response["count"].(float64)
+	if !ok {
+		t.Error("response should contain 'count' field")
+	}
+	if count < 1 || count > 10 {
+		t.Errorf("handler returned unexpected token count: got %v, want 1-10", count)
+	}
+
+	// Check that method exists
+	method, ok := response["method"].(string)
+	if !ok {
+		t.Error("response should contain 'method' field")
+	}
+	if method != "tiktoken" && method != "heuristic" {
+		t.Errorf("handler returned unexpected method: got %v", method)
+	}
+
+	// Check that provider exists
+	provider, ok := response["provider"].(string)
+	if !ok {
+		t.Error("response should contain 'provider' field")
+	}
+	if provider != "openai" {
+		t.Errorf("handler returned unexpected provider: got %v, want 'openai' as default", provider)
+	}
+}
+
+func TestHandleEstimateTokensWithProvider(t *testing.T) {
+	s := &Server{}
+	handler := s.RegisterRoutes()
+
+	payload := map[string]string{
+		"text":     "hello world",
+		"provider": "anthropic",
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/api/tokens/estimate", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	provider, ok := response["provider"].(string)
+	if !ok || provider != "anthropic" {
+		t.Errorf("handler returned wrong provider: got %v want anthropic", provider)
+	}
+
+	method, ok := response["method"].(string)
+	if !ok || method != "heuristic" {
+		t.Errorf("handler should use heuristic for anthropic: got %v", method)
 	}
 }
 
@@ -163,5 +219,151 @@ func TestHandleGetLedger(t *testing.T) {
 	}
 	if entries[0].FlowID != "flow-2" {
 		t.Errorf("expected first entry to be flow-2, got %s", entries[0].FlowID)
+	}
+}
+
+// ========== ERROR HANDLING TESTS ==========
+
+func TestHandleCreateLedgerEntry_MalformedJSON(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewServer(db)
+	handler := s.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "malformed JSON",
+			body:       `{"flow_id": "test"`, // missing closing brace
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid JSON type",
+			body:       `{"input_tokens": "not a number"}`, // wrong type
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty body",
+			body:       ``,
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("POST", "/api/ledger", bytes.NewBufferString(tt.body))
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d", rr.Code, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestHandleGetLedger_InvalidLimit(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(data.SQLiteSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewServer(db)
+	handler := s.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+	}{
+		{
+			name:       "non-numeric limit",
+			query:      "?limit=abc",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+		{
+			name:       "negative limit",
+			query:      "?limit=-5",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+		{
+			name:       "zero limit",
+			query:      "?limit=0",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+		{
+			name:       "float limit",
+			query:      "?limit=5.5",
+			wantStatus: http.StatusOK, // Should gracefully fall back to default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "/api/ledger"+tt.query, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d", rr.Code, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestHandleEstimateTokens_Errors(t *testing.T) {
+	s := &Server{}
+	handler := s.RegisterRoutes()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "malformed JSON",
+			body:       `{"text": "hello`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty body",
+			body:       ``,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty text returns zero tokens",
+			body:       `{"text": ""}`,
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("POST", "/api/tokens/estimate", bytes.NewBufferString(tt.body))
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("got status %d, want %d, body: %s", rr.Code, tt.wantStatus, rr.Body.String())
+			}
+		})
 	}
 }

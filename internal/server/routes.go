@@ -29,12 +29,19 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// Flows Routes
 	mux.HandleFunc("GET /api/flows", s.handleGetFlows)
+	mux.HandleFunc("GET /api/flows/{id}", s.handleGetFlow)
 	mux.HandleFunc("POST /api/flows", s.handleCreateFlow)
 	mux.HandleFunc("PUT /api/flows/{id}", s.handleUpdateFlow)
 	mux.HandleFunc("DELETE /api/flows/{id}", s.handleDeleteFlow)
 	mux.HandleFunc("POST /api/flows/{id}/execute", s.handleExecuteFlow)
+	mux.HandleFunc("GET /api/flows/{id}/status", s.handleGetFlowStatus)
 
 	return mux
+}
+
+// RegisterRoutesWithCORS returns routes wrapped with CORS middleware
+func (s *Server) RegisterRoutesWithCORS() http.Handler {
+	return CORSMiddleware(s.RegisterRoutes())
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {

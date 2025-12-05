@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/mikejsmith1985/forge-orchestrator/internal/llm"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
@@ -160,8 +161,14 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 	// Convert string provider to ProviderType
 	provider := llm.ProviderType(req.Provider)
 
+	// Time the execution
+	startTime := time.Now()
+
 	// Execute via Gateway
 	response, err := s.gateway.ExecutePrompt(req.AgentRole, commandPrompt, apiKey, provider)
+
+	// Calculate latency in milliseconds
+	latencyMs := time.Since(startTime).Milliseconds()
 
 	// Prepare ledger entry
 	ledgerEntry := LedgerEntry{
@@ -170,6 +177,7 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 		AgentRole:  req.AgentRole,
 		PromptHash: "hash-" + strconv.Itoa(len(commandPrompt)), // Placeholder hash
 		Status:     "SUCCESS",
+		LatencyMS:  int(latencyMs),
 	}
 
 	if err != nil {
@@ -185,7 +193,6 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 	ledgerEntry.InputTokens = response.InputTokens
 	ledgerEntry.OutputTokens = response.OutputTokens
 	ledgerEntry.TotalCostUSD = response.Cost
-	// Note: Latency is not captured here yet, could add timing around ExecutePrompt
 
 	// Log success to ledger
 	s.logToLedger(ledgerEntry)
