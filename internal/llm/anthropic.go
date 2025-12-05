@@ -6,10 +6,40 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
+// DefaultAnthropicEndpoint is the production API endpoint for Anthropic.
+const DefaultAnthropicEndpoint = "https://api.anthropic.com/v1/messages"
+
+// DefaultTimeoutSeconds is the default HTTP client timeout.
+const DefaultTimeoutSeconds = 30
+
 // AnthropicClient implements the LLMProvider interface for Anthropic.
-type AnthropicClient struct{}
+// It supports configurable endpoints and timeouts for testing and production use.
+type AnthropicClient struct {
+	// Endpoint is the API URL. If empty, uses DefaultAnthropicEndpoint.
+	Endpoint string
+
+	// TimeoutSeconds is the HTTP client timeout. If 0, uses DefaultTimeoutSeconds.
+	TimeoutSeconds int
+}
+
+// getEndpoint returns the configured endpoint or the default.
+func (c *AnthropicClient) getEndpoint() string {
+	if c.Endpoint != "" {
+		return c.Endpoint
+	}
+	return DefaultAnthropicEndpoint
+}
+
+// getTimeout returns the configured timeout duration.
+func (c *AnthropicClient) getTimeout() time.Duration {
+	if c.TimeoutSeconds > 0 {
+		return time.Duration(c.TimeoutSeconds) * time.Second
+	}
+	return DefaultTimeoutSeconds * time.Second
+}
 
 // anthropicRequest represents the payload for the Anthropic API.
 type anthropicRequest struct {
@@ -39,7 +69,7 @@ type anthropicResponse struct {
 }
 
 // Send sends a prompt to Anthropic's Claude 3.5 Sonnet model.
-// Educational Comment: We use the Messages API which separates system prompts from user messages.
+// It uses configurable endpoint and timeout for testability.
 func (c *AnthropicClient) Send(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
 	reqBody := anthropicRequest{
 		Model:     "claude-3-5-sonnet-20240620",
@@ -55,7 +85,7 @@ func (c *AnthropicClient) Send(systemPrompt, userPrompt, apiKey string) (string,
 		return "", 0, 0, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", c.getEndpoint(), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -64,7 +94,9 @@ func (c *AnthropicClient) Send(systemPrompt, userPrompt, apiKey string) (string,
 	req.Header.Set("anthropic-version", "2023-06-01")
 	req.Header.Set("content-type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: c.getTimeout(),
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to send request: %w", err)

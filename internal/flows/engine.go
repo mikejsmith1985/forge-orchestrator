@@ -124,11 +124,6 @@ func ExecuteFlowWithHub(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler
 	return nil
 }
 
-// executeFlowInternal contains the core flow execution logic (legacy version)
-func executeFlowInternal(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler) error {
-	return executeFlowInternalWithHub(flowID, db, gateway, wsSignaler, fileSignaler, nil)
-}
-
 // executeFlowInternalWithHub contains the core flow execution logic with Hub broadcasting
 func executeFlowInternalWithHub(flowID int, db *sql.DB, gateway *llm.Gateway, wsSignaler, fileSignaler Signaler, hub Broadcaster) error {
 	// 1. Fetch flow data

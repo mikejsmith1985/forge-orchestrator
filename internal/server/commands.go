@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mikejsmith1985/forge-orchestrator/internal/data"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/llm"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
 )
@@ -170,14 +171,15 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 	// Calculate latency in milliseconds
 	latencyMs := time.Since(startTime).Milliseconds()
 
-	// Prepare ledger entry
-	ledgerEntry := LedgerEntry{
-		FlowID:     "cmd-" + strconv.Itoa(id), // Simple flow ID for now
+	// Prepare ledger entry using the canonical data model
+	ledgerEntry := data.TokenLedgerEntry{
+		Timestamp:  time.Now(),
+		FlowID:     "cmd-" + strconv.Itoa(id),
 		ModelUsed:  string(provider),
 		AgentRole:  req.AgentRole,
-		PromptHash: "hash-" + strconv.Itoa(len(commandPrompt)), // Placeholder hash
+		PromptHash: "hash-" + strconv.Itoa(len(commandPrompt)),
 		Status:     "SUCCESS",
-		LatencyMS:  int(latencyMs),
+		LatencyMs:  int(latencyMs),
 	}
 
 	if err != nil {
@@ -198,21 +200,18 @@ func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
 	s.logToLedger(ledgerEntry)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-// logToLedger helper to insert into token_ledger
-func (s *Server) logToLedger(entry LedgerEntry) {
-	query := `
-		INSERT INTO token_ledger (
-			flow_id, model_used, agent_role, prompt_hash, 
-			input_tokens, output_tokens, total_cost_usd, 
-			latency_ms, status, error_message
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
-	s.db.Exec(query,
-		entry.FlowID, entry.ModelUsed, entry.AgentRole, entry.PromptHash,
-		entry.InputTokens, entry.OutputTokens, entry.TotalCostUSD,
-		entry.LatencyMS, entry.Status, entry.ErrorMessage,
-	)
+// logToLedger helper to insert into token_ledger using LedgerService.
+func (s *Server) logToLedger(entry data.TokenLedgerEntry) {
+	ledgerService := data.NewLedgerService(s.db)
+	if err := ledgerService.LogUsage(entry); err != nil {
+		// Log the error but don't fail the request
+		// This is best-effort logging
+		_ = err
+	}
 }

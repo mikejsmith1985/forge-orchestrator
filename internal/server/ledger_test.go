@@ -187,7 +187,7 @@ func TestHandleGetLedger(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	var entries []LedgerEntry
+	var entries []LedgerEntryResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &entries); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}

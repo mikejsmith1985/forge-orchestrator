@@ -6,10 +6,37 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
+// DefaultOpenAIEndpoint is the production API endpoint for OpenAI.
+const DefaultOpenAIEndpoint = "https://api.openai.com/v1/chat/completions"
+
 // OpenAIClient implements the LLMProvider interface for OpenAI.
-type OpenAIClient struct{}
+// It supports configurable endpoints and timeouts for testing and production use.
+type OpenAIClient struct {
+	// Endpoint is the API URL. If empty, uses DefaultOpenAIEndpoint.
+	Endpoint string
+
+	// TimeoutSeconds is the HTTP client timeout. If 0, uses DefaultTimeoutSeconds.
+	TimeoutSeconds int
+}
+
+// getEndpoint returns the configured endpoint or the default.
+func (c *OpenAIClient) getEndpoint() string {
+	if c.Endpoint != "" {
+		return c.Endpoint
+	}
+	return DefaultOpenAIEndpoint
+}
+
+// getTimeout returns the configured timeout duration.
+func (c *OpenAIClient) getTimeout() time.Duration {
+	if c.TimeoutSeconds > 0 {
+		return time.Duration(c.TimeoutSeconds) * time.Second
+	}
+	return DefaultTimeoutSeconds * time.Second
+}
 
 // openAIRequest represents the payload for the OpenAI API.
 type openAIRequest struct {
@@ -39,7 +66,7 @@ type openAIResponse struct {
 }
 
 // Send sends a prompt to OpenAI's GPT-4o model.
-// Educational Comment: OpenAI uses a chat completions endpoint where system prompts are just another message role.
+// It uses configurable endpoint and timeout for testability.
 func (c *OpenAIClient) Send(systemPrompt, userPrompt, apiKey string) (string, int, int, error) {
 	reqBody := openAIRequest{
 		Model: "gpt-4o",
@@ -54,7 +81,7 @@ func (c *OpenAIClient) Send(systemPrompt, userPrompt, apiKey string) (string, in
 		return "", 0, 0, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", c.getEndpoint(), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -62,7 +89,9 @@ func (c *OpenAIClient) Send(systemPrompt, userPrompt, apiKey string) (string, in
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: c.getTimeout(),
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to send request: %w", err)

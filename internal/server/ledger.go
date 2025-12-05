@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/mikejsmith1985/forge-orchestrator/internal/data"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/tokenizer"
 )
 
-// LedgerEntry represents a row in the token_ledger table.
-type LedgerEntry struct {
-	ID           int     `json:"id"`
+// LedgerEntryResponse is the JSON API representation of a ledger entry.
+// It uses string for timestamp to ensure consistent JSON serialization.
+type LedgerEntryResponse struct {
+	ID           int64   `json:"id"`
 	Timestamp    string  `json:"timestamp"`
 	FlowID       string  `json:"flow_id"`
 	ModelUsed    string  `json:"model_used"`
@@ -20,33 +23,71 @@ type LedgerEntry struct {
 	InputTokens  int     `json:"input_tokens"`
 	OutputTokens int     `json:"output_tokens"`
 	TotalCostUSD float64 `json:"total_cost_usd"`
-	LatencyMS    int     `json:"latency_ms"`
+	LatencyMs    int     `json:"latency_ms"`
 	Status       string  `json:"status"`
 	ErrorMessage string  `json:"error_message,omitempty"`
 }
 
+// ToResponse converts a TokenLedgerEntry to its API response format.
+func ToLedgerResponse(entry data.TokenLedgerEntry) LedgerEntryResponse {
+	return LedgerEntryResponse{
+		ID:           entry.ID,
+		Timestamp:    entry.Timestamp.Format(time.RFC3339),
+		FlowID:       entry.FlowID,
+		ModelUsed:    entry.ModelUsed,
+		AgentRole:    entry.AgentRole,
+		PromptHash:   entry.PromptHash,
+		InputTokens:  entry.InputTokens,
+		OutputTokens: entry.OutputTokens,
+		TotalCostUSD: entry.TotalCostUSD,
+		LatencyMs:    entry.LatencyMs,
+		Status:       entry.Status,
+		ErrorMessage: entry.ErrorMessage,
+	}
+}
+
+// LedgerEntryRequest is the JSON API representation for creating a ledger entry.
+type LedgerEntryRequest struct {
+	FlowID       string  `json:"flow_id"`
+	ModelUsed    string  `json:"model_used"`
+	AgentRole    string  `json:"agent_role"`
+	PromptHash   string  `json:"prompt_hash"`
+	InputTokens  int     `json:"input_tokens"`
+	OutputTokens int     `json:"output_tokens"`
+	TotalCostUSD float64 `json:"total_cost_usd"`
+	LatencyMs    int     `json:"latency_ms"`
+	Status       string  `json:"status"`
+	ErrorMessage string  `json:"error_message,omitempty"`
+}
+
+// ToEntry converts a LedgerEntryRequest to a TokenLedgerEntry.
+func (r LedgerEntryRequest) ToEntry() data.TokenLedgerEntry {
+	return data.TokenLedgerEntry{
+		Timestamp:    time.Now(),
+		FlowID:       r.FlowID,
+		ModelUsed:    r.ModelUsed,
+		AgentRole:    r.AgentRole,
+		PromptHash:   r.PromptHash,
+		InputTokens:  r.InputTokens,
+		OutputTokens: r.OutputTokens,
+		TotalCostUSD: r.TotalCostUSD,
+		LatencyMs:    r.LatencyMs,
+		Status:       r.Status,
+		ErrorMessage: r.ErrorMessage,
+	}
+}
+
 // handleCreateLedgerEntry inserts a new entry into the token_ledger table.
 func (s *Server) handleCreateLedgerEntry(w http.ResponseWriter, r *http.Request) {
-	var entry LedgerEntry
-	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
+	var req LedgerEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	query := `
-		INSERT INTO token_ledger (
-			flow_id, model_used, agent_role, prompt_hash, 
-			input_tokens, output_tokens, total_cost_usd, 
-			latency_ms, status, error_message
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
-
-	_, err := s.db.Exec(query,
-		entry.FlowID, entry.ModelUsed, entry.AgentRole, entry.PromptHash,
-		entry.InputTokens, entry.OutputTokens, entry.TotalCostUSD,
-		entry.LatencyMS, entry.Status, entry.ErrorMessage,
-	)
-	if err != nil {
+	entry := req.ToEntry()
+	ledgerService := data.NewLedgerService(s.db)
+	if err := ledgerService.LogUsage(entry); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -76,8 +117,6 @@ func (s *Server) handleEstimateTokens(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetLedger retrieves the history of agent executions.
-// Educational Comment: We use a limit to prevent fetching too many rows at once,
-// which could impact performance. The default is 50, but clients can override it.
 func (s *Server) handleGetLedger(w http.ResponseWriter, r *http.Request) {
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
@@ -101,13 +140,13 @@ func (s *Server) handleGetLedger(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	entries := []LedgerEntry{}
+	entries := []LedgerEntryResponse{}
 	for rows.Next() {
-		var e LedgerEntry
+		var e data.TokenLedgerEntry
 		var errMsg sql.NullString
 		if err := rows.Scan(
 			&e.ID, &e.Timestamp, &e.FlowID, &e.ModelUsed, &e.AgentRole, &e.PromptHash,
-			&e.InputTokens, &e.OutputTokens, &e.TotalCostUSD, &e.LatencyMS, &e.Status, &errMsg,
+			&e.InputTokens, &e.OutputTokens, &e.TotalCostUSD, &e.LatencyMs, &e.Status, &errMsg,
 		); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -115,9 +154,12 @@ func (s *Server) handleGetLedger(w http.ResponseWriter, r *http.Request) {
 		if errMsg.Valid {
 			e.ErrorMessage = errMsg.String
 		}
-		entries = append(entries, e)
+		entries = append(entries, ToLedgerResponse(e))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(entries)
+	if err := json.NewEncoder(w).Encode(entries); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
