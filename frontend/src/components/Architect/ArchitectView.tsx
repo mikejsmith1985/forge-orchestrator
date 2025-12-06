@@ -126,13 +126,35 @@ export const ArchitectView: React.FC = () => {
 
             {/* Dynamic Budget Meter - Task 4.2 */}
             {budgetStatus && (
-                <BudgetMeter
-                    remainingPrompts={budgetStatus.remainingPrompts}
-                    remainingBudget={budgetStatus.remainingBudget}
-                    totalBudget={budgetStatus.totalBudget}
-                    costUnit={budgetStatus.costUnit}
-                    model={budgetStatus.model}
-                />
+                <div className="space-y-2">
+                    <BudgetMeter
+                        remainingPrompts={budgetStatus.remainingPrompts}
+                        remainingBudget={budgetStatus.remainingBudget}
+                        totalBudget={budgetStatus.totalBudget}
+                        costUnit={budgetStatus.costUnit}
+                        model={budgetStatus.model}
+                    />
+                    {/* Token Measurement Explanation */}
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                            <span className="text-xs text-blue-400 mt-0.5">💡</span>
+                            <div className="text-xs text-slate-400">
+                                {budgetStatus.costUnit === 'TOKEN' ? (
+                                    <>
+                                        <strong className="text-slate-300">Token Usage:</strong> Measures the total number of tokens 
+                                        (words/pieces) in your <em>input prompt</em>. More text = more tokens = higher cost. 
+                                        Most models bill per token processed.
+                                    </>
+                                ) : (
+                                    <>
+                                        <strong className="text-slate-300">Prompt-Based Billing:</strong> This model charges per request/prompt 
+                                        regardless of length. Token count is shown for reference, but cost is fixed per interaction.
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Context Navigator - V2.1 Core Feature */}

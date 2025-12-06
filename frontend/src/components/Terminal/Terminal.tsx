@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SearchAddon } from '@xterm/addon-search';
 import '@xterm/xterm/css/xterm.css';
-import { Eye, EyeOff, ArrowDownToLine } from 'lucide-react';
+import { Eye, EyeOff, ArrowDownToLine, Plus, Minus } from 'lucide-react';
 
 /**
  * Enhanced Terminal Component with forge-terminal features
@@ -180,6 +180,11 @@ export const Terminal: React.FC<TerminalProps> = ({
         return `${protocol}//${host}:${port}/ws/pty`;
     }, []);
 
+    const [fontSize, setFontSize] = useState(() => {
+        const saved = localStorage.getItem('forge_terminal_font_size');
+        return saved ? parseInt(saved, 10) : 14;
+    });
+
     const togglePromptWatcher = useCallback(() => {
         const newState = !promptWatcherEnabled;
         setPromptWatcherEnabled(newState);
@@ -191,6 +196,20 @@ export const Terminal: React.FC<TerminalProps> = ({
             }));
         }
     }, [promptWatcherEnabled]);
+
+    const changeFontSize = useCallback((delta: number) => {
+        setFontSize(prev => {
+            const newSize = Math.max(8, Math.min(24, prev + delta));
+            localStorage.setItem('forge_terminal_font_size', newSize.toString());
+            if (xtermRef.current) {
+                xtermRef.current.options.fontSize = newSize;
+                if (fitAddonRef.current) {
+                    setTimeout(() => fitAddonRef.current?.fit(), 0);
+                }
+            }
+            return newSize;
+        });
+    }, []);
     
     const handleScrollToBottom = useCallback(() => {
         if (xtermRef.current) {
@@ -205,7 +224,7 @@ export const Terminal: React.FC<TerminalProps> = ({
 
         const term = new XTerm({
             cursorBlink: true,
-            fontSize: 14,
+            fontSize: fontSize,
             fontFamily: 'JetBrains Mono, Menlo, Monaco, "Courier New", monospace',
             theme: {
                 background: '#0f172a',
@@ -443,7 +462,7 @@ export const Terminal: React.FC<TerminalProps> = ({
             xtermRef.current = null;
             term.dispose();
         };
-    }, [getWebSocketUrl, onConnect, onDisconnect, promptWatcherEnabled]);
+    }, [getWebSocketUrl, onConnect, onDisconnect, promptWatcherEnabled, fontSize]);
 
     return (
         <div ref={containerRef} className={`flex flex-col h-full ${className}`} style={{ position: 'relative' }}>
@@ -520,20 +539,45 @@ export const Terminal: React.FC<TerminalProps> = ({
                     <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
                 </div>
                 
-                {/* Prompt Watcher Toggle */}
-                <button
-                    onClick={togglePromptWatcher}
-                    className={`flex items-center gap-2 px-3 py-1 rounded text-sm transition-colors ${
-                        promptWatcherEnabled
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                    }`}
-                    title="Auto-respond to confirmation prompts (y/n)"
-                    data-testid="prompt-watcher-toggle"
-                >
-                    {promptWatcherEnabled ? <Eye size={16} /> : <EyeOff size={16} />}
-                    <span>Auto-Respond</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Font Size Controls */}
+                    <div className="flex items-center gap-1 bg-slate-700 rounded px-2 py-1">
+                        <button
+                            onClick={() => changeFontSize(-1)}
+                            className="text-slate-400 hover:text-white transition-colors p-1"
+                            title="Decrease font size"
+                            data-testid="font-size-decrease"
+                        >
+                            <Minus size={14} />
+                        </button>
+                        <span className="text-xs text-slate-400 min-w-[2rem] text-center" data-testid="font-size-display">
+                            {fontSize}px
+                        </span>
+                        <button
+                            onClick={() => changeFontSize(1)}
+                            className="text-slate-400 hover:text-white transition-colors p-1"
+                            title="Increase font size"
+                            data-testid="font-size-increase"
+                        >
+                            <Plus size={14} />
+                        </button>
+                    </div>
+                    
+                    {/* Prompt Watcher Toggle */}
+                    <button
+                        onClick={togglePromptWatcher}
+                        className={`flex items-center gap-2 px-3 py-1 rounded text-sm transition-colors ${
+                            promptWatcherEnabled
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                        }`}
+                        title="Auto-respond to confirmation prompts (y/n)"
+                        data-testid="prompt-watcher-toggle"
+                    >
+                        {promptWatcherEnabled ? <Eye size={16} /> : <EyeOff size={16} />}
+                        <span>Auto-Respond</span>
+                    </button>
+                </div>
             </div>
             
             {/* Terminal container */}

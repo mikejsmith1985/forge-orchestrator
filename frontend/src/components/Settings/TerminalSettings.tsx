@@ -124,22 +124,6 @@ export const TerminalSettings: React.FC = () => {
                 <h1 className="text-3xl font-bold text-slate-100">Terminal Settings</h1>
             </div>
 
-            {/* Status Message */}
-            {message && (
-                <div className={`flex items-center gap-2 p-4 mb-6 rounded-lg ${
-                    message.type === 'success' 
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                }`}>
-                    {message.type === 'success' ? (
-                        <CheckCircle className="w-5 h-5" />
-                    ) : (
-                        <AlertCircle className="w-5 h-5" />
-                    )}
-                    <span>{message.text}</span>
-                </div>
-            )}
-
             {/* Shell Selection */}
             <div className="bg-slate-800 rounded-lg p-6 mb-6">
                 <h2 className="text-xl font-semibold text-slate-100 mb-4 flex items-center gap-2">
@@ -297,14 +281,32 @@ export const TerminalSettings: React.FC = () => {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-end">
-                <button
-                    onClick={saveConfig}
-                    disabled={saving}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-                >
-                    {saving ? 'Saving...' : 'Save Configuration'}
-                </button>
+            <div className="flex flex-col gap-4">
+                {/* Status Message - Now at bottom near save button */}
+                {message && (
+                    <div className={`flex items-center gap-2 p-4 rounded-lg ${
+                        message.type === 'success' 
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                        {message.type === 'success' ? (
+                            <CheckCircle className="w-5 h-5" />
+                        ) : (
+                            <AlertCircle className="w-5 h-5" />
+                        )}
+                        <span>{message.text}</span>
+                    </div>
+                )}
+                
+                <div className="flex justify-end">
+                    <button
+                        onClick={saveConfig}
+                        disabled={saving}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                    >
+                        {saving ? 'Saving...' : 'Save Configuration'}
+                    </button>
+                </div>
             </div>
         </div>
     );

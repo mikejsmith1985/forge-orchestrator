@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Camera, Github, Settings, Loader2, ExternalLink, Trash2, Check } from 'lucide-react';
+import { X, Camera, Github, Settings, Loader2, ExternalLink, Trash2, Check, Minimize2 } from 'lucide-react';
 import { getLogs } from '../../utils/logger';
 
 interface FeedbackModalProps {
@@ -21,6 +21,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     const [githubToken, setGithubToken] = useState('');
     const [status, setStatus] = useState<{ type: 'info' | 'error' | 'success'; message: string } | null>(null);
     const [createdIssueUrl, setCreatedIssueUrl] = useState<string | null>(null);
+    const [isMinimized, setIsMinimized] = useState(false);
 
     useEffect(() => {
         const savedToken = localStorage.getItem('forge_github_token');
@@ -244,10 +245,30 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     };
 
     const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && !isMinimized) {
             onClose();
         }
     };
+
+    // Determine if we should show minimize (has content) vs close
+    const hasContent = description.trim().length > 0 || screenshots.length > 0;
+    
+    // When minimized, show small floating badge
+    if (isMinimized) {
+        return (
+            <button
+                onClick={() => setIsMinimized(false)}
+                className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg transition-colors"
+                data-testid="feedback-minimized-badge"
+            >
+                <Github size={16} />
+                Feedback in Progress
+                <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {screenshots.length}
+                </span>
+            </button>
+        );
+    }
 
     return (
         <div
@@ -262,13 +283,26 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                         <Github size={20} />
                         Send Feedback
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-white transition-colors"
-                        aria-label="Close"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {hasContent && (
+                            <button
+                                onClick={() => setIsMinimized(true)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                                aria-label="Minimize"
+                                title="Minimize while capturing more screenshots"
+                                data-testid="minimize-feedback"
+                            >
+                                <Minimize2 size={20} />
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="text-gray-400 hover:text-white transition-colors"
+                            aria-label="Close"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -380,7 +414,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                                 </div>
 
                                 {screenshots.length > 0 && (
-                                    <div className="space-y-2">
+                                    <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2" data-testid="screenshots-container">
                                         {screenshots.map((screenshot, index) => (
                                             <div key={index} className="relative p-2 bg-gray-800 rounded-lg">
                                                 <img 
