@@ -16,3 +16,12 @@
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
