@@ -13,9 +13,9 @@ func TestInitCORS_DefaultOrigins(t *testing.T) {
 
 	origins := InitCORS()
 
-	// Should have default origins (4 http + 4 https = 8)
-	if len(origins) != 8 {
-		t.Errorf("Expected 8 default origins, got %d", len(origins))
+	// Should have default origins (6 http + 6 https = 12)
+	if len(origins) != 12 {
+		t.Errorf("Expected 12 default origins, got %d", len(origins))
 	}
 
 	// Check that localhost:8080 is allowed
