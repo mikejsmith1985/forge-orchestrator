@@ -139,7 +139,7 @@ test.describe('Terminal Error Handling', () => {
 });
 
 test.describe('Settings API Integration', () => {
-    test('settings API returns valid configuration', async ({ page, request }) => {
+    test('settings API returns valid configuration', async ({ request }) => {
         // Direct API test
         const response = await request.get('/api/config');
         expect(response.ok()).toBeTruthy();
@@ -149,7 +149,7 @@ test.describe('Settings API Integration', () => {
         expect(config.shell).toHaveProperty('type');
     });
 
-    test('settings API accepts configuration updates', async ({ page, request }) => {
+    test('settings API accepts configuration updates', async ({ request }) => {
         // Get current config
         const getResponse = await request.get('/api/config');
         const currentConfig = await getResponse.json();
