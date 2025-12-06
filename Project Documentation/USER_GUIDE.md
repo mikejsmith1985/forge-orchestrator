@@ -1,6 +1,6 @@
 # Forge Orchestrator - User Guide
 
-**Version:** 2.1.0  
+**Version:** 1.1.1  
 **Last Updated:** December 2024
 
 Welcome to Forge Orchestrator! This guide will walk you through every feature in plain, easy-to-understand language.
@@ -315,27 +315,78 @@ At the top of the Settings page, you'll see a **security notice**:
 
 ### What It Does
 
-Report bugs or suggest features directly to the developers with screenshots included.
+Report bugs or suggest features directly to the developers. The app will create a GitHub issue with your feedback, screenshots, and diagnostic logs to help us fix problems faster.
 
-### How to Use It
+### Initial Setup (One-Time)
+
+The first time you use feedback, you'll need to set up a GitHub Personal Access Token (PAT):
+
+1. **Why you need it:**
+   - Allows the app to create issues on your behalf
+   - Uploads screenshots to help developers see the problem
+   - Completely safe - only has permission to create issues
+
+2. **Click "Generate Token on GitHub":**
+   - This opens GitHub with a **prefilled form**
+   - Token name: "Forge Orchestrator Feedback"
+   - Permission scope: `public_repo` (create issues)
+   - Click **"Generate token"** on GitHub
+
+3. **Copy and paste:**
+   - GitHub shows your new token (starts with `ghp_`)
+   - Copy it (you won't see it again!)
+   - Paste into the Forge Orchestrator input field
+   - Click **"Save Settings"**
+
+### Sending Feedback
+
+Once setup is complete:
 
 1. **Open the form** - Click "Send Feedback" in the sidebar
 
-2. **First-time setup:**
-   - You need a GitHub Personal Access Token
-   - Click the link to generate one
-   - Paste it and click **Save Settings**
+2. **Describe the issue:**
+   - Be specific about what happened
+   - What you were doing when it occurred
+   - What you expected vs. what actually happened
 
-3. **Write your feedback:**
-   - Describe the issue clearly
-   - What you were doing
-   - What went wrong
+3. **Add screenshots (optional but helpful):**
+   - Click **"Capture Screen"** to take a screenshot
+   - The screenshot is automatically added to your feedback
+   - You can add multiple screenshots
+   - Click the trash icon to remove unwanted screenshots
 
-4. **Add screenshots:**
-   - Click **"Capture Screen"**
-   - Remove any with the X button
+4. **Submit:**
+   - Click **"Submit Feedback"**
+   - The app uploads screenshots and creates a GitHub issue
+   - You'll see the issue number and a link when done
+   - The modal closes automatically
 
-5. **Submit** - Click **Submit Feedback**
+### What Gets Included
+
+Your feedback submission includes:
+
+- Your description
+- Screenshots you captured
+- Browser information (user agent)
+- Timestamp
+- Application logs (helps with debugging)
+
+### Troubleshooting
+
+**"Invalid GitHub token" error:**
+- Your token may have expired
+- Click "Update Settings" and generate a new token
+- Make sure you copied the entire token
+
+**"Token lacks permissions" error:**
+- The token needs `public_repo` scope
+- Use the "Generate Token on GitHub" link to create a proper token
+- Don't manually create tokens - use the prefilled link
+
+**Screenshot upload failed:**
+- Your token may be invalid
+- Check your internet connection
+- The issue will still be created without the screenshot
 
 ---
 

@@ -90,6 +90,7 @@ export function Sidebar({ currentVersion, hasUpdate, onUpdateClick, onFeedbackCl
                             onClick={onFeedbackClick}
                             className="flex items-center w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 hover:text-white transition-colors text-sm"
                             aria-label="Send Feedback"
+                            data-testid="feedback-button"
                         >
                             <MessageSquare size={16} className="mr-2" />
                             Send Feedback

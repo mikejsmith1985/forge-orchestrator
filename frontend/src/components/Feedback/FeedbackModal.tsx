@@ -26,6 +26,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         const savedToken = localStorage.getItem('forge_github_token');
         if (savedToken) {
             setGithubToken(savedToken);
+            setShowSetup(false);
         } else {
             setShowSetup(true);
         }
@@ -33,6 +34,15 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
     useEffect(() => {
         if (!isOpen) return;
+
+        // Reset state when modal opens
+        const savedToken = localStorage.getItem('forge_github_token');
+        if (savedToken) {
+            setGithubToken(savedToken);
+            setShowSetup(false);
+        } else {
+            setShowSetup(true);
+        }
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -130,10 +140,16 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         });
 
         if (!res.ok) {
-            if (res.status === 403 || res.status === 404) {
-                throw new Error('Permission denied - check your GitHub token permissions');
+            if (res.status === 401) {
+                throw new Error('Invalid GitHub token - please check your token and try again');
             }
-            throw new Error('Failed to upload screenshot to GitHub');
+            if (res.status === 403) {
+                throw new Error('GitHub token lacks permissions - ensure it has "public_repo" scope');
+            }
+            if (res.status === 404) {
+                throw new Error('Repository not found - check your token has access to public repositories');
+            }
+            throw new Error(`Failed to upload screenshot (HTTP ${res.status})`);
         }
 
         const data = await res.json();
@@ -168,7 +184,13 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         });
 
         if (!res.ok) {
-            throw new Error('Failed to create GitHub issue');
+            if (res.status === 401) {
+                throw new Error('Invalid GitHub token - please update your token in settings');
+            }
+            if (res.status === 403) {
+                throw new Error('GitHub token lacks permissions - ensure it has "public_repo" scope');
+            }
+            throw new Error(`Failed to create issue (HTTP ${res.status})`);
         }
 
         return await res.json();
@@ -258,32 +280,48 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                                     <Settings size={16} />
                                     Setup Required
                                 </h3>
-                                <p className="text-sm text-gray-400">
-                                    To submit feedback directly to GitHub, you need a Personal Access Token.
+                                <p className="text-sm text-gray-400 mb-3">
+                                    To submit feedback directly to GitHub, you need a Personal Access Token (PAT).
                                 </p>
+                                <div className="text-xs text-gray-400 space-y-2">
+                                    <p>A PAT allows this app to:</p>
+                                    <ul className="list-disc list-inside ml-2 space-y-1">
+                                        <li>Create issues in the forge-orchestrator repository</li>
+                                        <li>Upload screenshots to help developers debug</li>
+                                    </ul>
+                                </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                    GitHub Token
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    GitHub Personal Access Token (Required)
                                 </label>
-                                <p className="text-xs text-gray-500 mb-2">
+                                <div className="p-3 bg-gray-800/50 border border-gray-700 rounded-lg mb-3">
+                                    <p className="text-xs text-gray-400 mb-2">
+                                        Click the button below to generate a token with the correct permissions:
+                                    </p>
                                     <a 
                                         href="https://github.com/settings/tokens/new?scopes=public_repo&description=Forge+Orchestrator+Feedback" 
                                         target="_blank" 
                                         rel="noreferrer"
-                                        className="text-blue-400 hover:underline"
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors"
+                                        data-testid="generate-token-link"
                                     >
-                                        Generate Token
+                                        <Github size={16} />
+                                        Generate Token on GitHub
+                                        <ExternalLink size={14} />
                                     </a>
-                                    {' '}with public_repo scope
-                                </p>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Scope needed: <code className="px-1 py-0.5 bg-gray-900 rounded text-blue-400">public_repo</code>
+                                    </p>
+                                </div>
                                 <input
                                     type="password"
                                     value={githubToken}
                                     onChange={(e) => setGithubToken(e.target.value)}
                                     placeholder="ghp_xxxxxxxxxxxx"
                                     className="w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    data-testid="github-token-input"
                                 />
                             </div>
 
