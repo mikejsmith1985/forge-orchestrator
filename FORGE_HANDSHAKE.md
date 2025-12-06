@@ -1,7 +1,7 @@
 # Forge Orchestrator ↔ Forge Terminal Handshake Specification
 
 **Version**: 1.2.0  
-**Last Updated**: 2025-12-06T17:04:04.000Z  
+**Last Updated**: 2025-12-06T18:49:07.000Z  
 **Purpose**: Ensure Forge Orchestrator maintains 1:1 feature parity with Forge Terminal
 
 ---
@@ -266,7 +266,7 @@ The repository can be configured to automatically check for Terminal updates:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.2.0 | 2025-12-06T17:04:04.000Z | Initial handshake document |
+| 1.2.0 | 2025-12-06T18:49:07.000Z | Initial handshake document |
 
 ---
 
