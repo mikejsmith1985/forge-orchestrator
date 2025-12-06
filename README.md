@@ -1,64 +1,124 @@
 # Forge Orchestrator
 
-Forge Orchestrator is a powerful developer tool designed to streamline your workflow by integrating LLM capabilities directly into your command-line and development environment. It acts as a bridge between your intent and execution, providing intelligent command generation, token usage tracking, and automated workflows.
+Forge Orchestrator is a terminal-centric developer tool that puts a real PTY (pseudo-terminal) at the center of your workflow. It integrates LLM capabilities directly into your development environment, providing intelligent command generation, token usage tracking, and automated workflows—all while keeping you in control of your shell.
 
 ## Features
 
--   **Architect**: Leverage LLMs to generate complex terminal commands from natural language descriptions.
--   **Ledger**: Keep track of your token usage and costs across different LLM providers.
--   **Commands**: Execute generated commands safely and maintain a history of your actions.
--   **Flows**: Visually design and execute complex automation workflows.
--   **Keyring**: Securely manage your API keys for various services.
+-   **🖥️ Integrated Terminal**: Full PTY terminal powered by xterm.js with WebSocket streaming. Type commands, see real output, and maintain persistent shell sessions.
+-   **🤖 Prompt Watcher**: Automatically responds to confirmation prompts (y/n) when enabled, perfect for unattended automation.
+-   **🧠 Architect**: Leverage LLMs to brainstorm and plan tasks with live token estimation.
+-   **📊 Ledger**: Track token usage and costs across different LLM providers with Primary Cost Unit support (TOKEN or PROMPT billing).
+-   **⚡ Commands**: Save and execute frequently-used shell commands with one click.
+-   **🔀 Flows**: Visually design automation workflows with two distinct node types:
+    - **Shell Command Nodes** (Zero-Token): Execute local scripts without consuming LLM budget
+    - **LLM Prompt Nodes** (Premium): Run AI-powered tasks with confirmation gating
+-   **🔐 Secure Keyring**: API keys are encrypted and stored in your OS native keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service).
 
-## Setup Guide
+## Quick Start
 
 ### Prerequisites
 
--   **Go**: Version 1.23 or higher.
--   **Node.js**: Version 20 or higher.
+-   **Go**: Version 1.24 or higher
+-   **Node.js**: Version 20 or higher
 
 ### Installation
 
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/mikejsmith1985/forge-orchestrator.git
-    cd forge-orchestrator
-    ```
+```bash
+# Clone the repository
+git clone https://github.com/mikejsmith1985/forge-orchestrator.git
+cd forge-orchestrator
 
-2.  Install Backend Dependencies:
-    ```bash
-    go mod download
-    ```
+# Install backend dependencies
+go mod download
 
-3.  Install Frontend Dependencies:
-    ```bash
-    cd frontend
-    npm install
-    cd ..
-    ```
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 
-### Running Locally
+# Build the application
+go build -o forge-orchestrator .
+```
 
-To start the application, you need to run both the backend and the frontend.
+### Running
 
-1.  **Backend**:
-    ```bash
-    go run main.go
-    ```
-    The backend server will start on `http://localhost:8080`.
+```bash
+# Start the backend
+./forge-orchestrator
 
-2.  **Frontend**:
-    ```bash
-    cd frontend
-    npm run dev
-    ```
-    The frontend development server will start on `http://localhost:5173`.
+# In another terminal, start the frontend (for development)
+cd frontend && npm run dev
+```
+
+The application opens with the **Terminal** as the default view, establishing the app's identity as a terminal-first developer tool.
+
+## Usage
+
+### Terminal View (Default)
+
+The Terminal is your primary workspace:
+- Full shell access with PTY streaming
+- Connection status indicator (green = connected)
+- **Prompt Watcher** toggle to auto-respond to y/n confirmations
+- Commands typed here execute in your actual shell
+
+### Flow Editor
+
+Create visual automation workflows:
+
+1. **Drag nodes** from the sidebar onto the canvas:
+   - **Shell Command** (⚡ Zero-Token): Free local execution
+   - **LLM Prompt** (💎 Premium): AI-powered with token cost
+
+2. **Configure nodes** by clicking them:
+   - Enter your command or prompt string
+   - Shell nodes execute immediately
+   - LLM nodes show a confirmation modal before consuming budget
+
+3. **Connect nodes** to define execution order
+
+4. **Execute** the flow to run all nodes in sequence
+
+### Token Economy
+
+Forge Orchestrator tracks your AI spending with precision:
+
+- **TOKEN-based billing**: For traditional LLM providers (OpenAI, Anthropic)
+- **PROMPT-based billing**: For per-request pricing models
+- **Dynamic Budget Meter**: Shows remaining budget in the correct currency
+- **Ledger**: Full history with cost breakdown by Primary Cost Unit
 
 ## Architecture
 
-Forge Orchestrator follows a modern client-server architecture. The frontend is built with React and TypeScript, communicating with a Go backend via a RESTful API. The backend handles business logic, interacts with a SQLite database for persistence, and manages integrations with LLM providers through a dedicated Gateway.
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     React Frontend                          │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐│
+│  │Terminal │  │ Flows   │  │ Ledger  │  │   Architect     ││
+│  │(xterm)  │  │ Editor  │  │ View    │  │   View          ││
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────────┬────────┘│
+│       │            │            │                 │         │
+│       └────────────┴────────────┴─────────────────┘         │
+│                         │ WebSocket + REST                  │
+└─────────────────────────┼───────────────────────────────────┘
+                          │
+┌─────────────────────────┼───────────────────────────────────┐
+│                     Go Backend                              │
+│  ┌──────────────┐  ┌────────────┐  ┌───────────────────────┐│
+│  │ PTY Manager  │  │ WebSocket  │  │ REST API Handlers     ││
+│  │ (pty_manager)│  │ Hub        │  │ /api/*, /ws/*         ││
+│  └──────┬───────┘  └─────┬──────┘  └───────────┬───────────┘│
+│         │                │                      │            │
+│  ┌──────┴────────────────┴──────────────────────┴──────────┐│
+│  │              Core Services                               ││
+│  │  Executor │ LLM Gateway │ Tokenizer │ Keyring │ Ledger  ││
+│  └──────────────────────────────────────────────────────────┘│
+│                          │                                   │
+│  ┌───────────────────────┴──────────────────────────────────┐│
+│  │                    SQLite Database                       ││
+│  └──────────────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────┘
+```
 
-For a detailed deep dive into the system design, please refer to [docs/architecture.md](docs/architecture.md).
+For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
 ## Configuration
 
@@ -66,91 +126,61 @@ For a detailed deep dive into the system design, please refer to [docs/architect
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FORGE_ALLOWED_ORIGINS` | Comma-separated list of allowed origins for CORS | `http(s)://localhost:8080,http(s)://localhost:5173,http(s)://127.0.0.1:8080,http(s)://127.0.0.1:5173` |
-| `FORGE_TLS_CERT` | Path to TLS certificate file for HTTPS | (none) |
-| `FORGE_TLS_KEY` | Path to TLS private key file for HTTPS | (none) |
+| `FORGE_ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | `http(s)://localhost:*` |
+| `FORGE_TLS_CERT` | Path to TLS certificate file | (none) |
+| `FORGE_TLS_KEY` | Path to TLS private key file | (none) |
 
-### TLS/HTTPS Configuration
-
-Forge Orchestrator supports three TLS modes:
-
-#### 1. Production HTTPS (Recommended)
-
-Use your own TLS certificates for production deployments:
+### TLS/HTTPS
 
 ```bash
-# Set certificate and key paths
-export FORGE_TLS_CERT=/path/to/your/certificate.crt
-export FORGE_TLS_KEY=/path/to/your/private.key
-
-# Start the server
+# Production with certificates
+export FORGE_TLS_CERT=/path/to/cert.crt
+export FORGE_TLS_KEY=/path/to/key.pem
 ./forge-orchestrator
-```
 
-The server will log: `🔒 Starting HTTPS server on :8080`
-
-#### 2. Development HTTPS (Self-Signed)
-
-For local development with HTTPS, use the `--dev-tls` flag to auto-generate a self-signed certificate:
-
-```bash
+# Development with self-signed certificate
 ./forge-orchestrator --dev-tls
-```
 
-This will:
-- Generate a self-signed certificate valid for `localhost` and `127.0.0.1`
-- Save the certificate to `.forge/certs/` for inspection
-- Certificate is valid for 1 year
-- **⚠️ Not suitable for production use**
-
-The server will log:
-```
-⚠️  Generating self-signed certificate for development
-⚠️  This is NOT suitable for production use!
-🔒 Starting HTTPS server on :8080 (self-signed)
-```
-
-#### 3. HTTP Mode (No TLS)
-
-If no TLS configuration is provided, the server runs in HTTP mode:
-
-```bash
+# HTTP only (not recommended for production)
 ./forge-orchestrator
 ```
 
-The server will log: `⚠️  Running HTTP server (no TLS) - not recommended for production`
+## API Endpoints
 
-### Generating Production Certificates
+### Terminal/PTY
+- `WS /ws/pty` - WebSocket for PTY streaming
+- `POST /api/command/execute` - Inject command into active PTY session
 
-For production, you can obtain certificates from:
+### Core
+- `GET /api/health` - Health check
+- `POST /api/execute` - Execute command via Executor interface
+- `POST /api/tokens/estimate` - Estimate token count
 
-1. **Let's Encrypt** (free, automated):
-   ```bash
-   certbot certonly --standalone -d yourdomain.com
-   export FORGE_TLS_CERT=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
-   export FORGE_TLS_KEY=/etc/letsencrypt/live/yourdomain.com/privkey.pem
-   ```
+### Flows
+- `GET/POST /api/flows` - List/create flows
+- `GET/PUT/DELETE /api/flows/{id}` - CRUD operations
+- `POST /api/flows/{id}/execute` - Execute a flow
 
-2. **Self-Signed (for internal use)**:
-   ```bash
-   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
-   export FORGE_TLS_CERT=cert.pem
-   export FORGE_TLS_KEY=key.pem
-   ```
+### Ledger
+- `GET/POST /api/ledger` - Token usage records
+- `GET /api/ledger/optimizations` - Cost optimization suggestions
 
-#### CORS Configuration
+### Keys
+- `POST /api/keys` - Save API key to keyring
+- `GET /api/keys/status` - Check which providers are configured
 
-By default, the server only allows connections from localhost development servers. For production deployments, you should set the `FORGE_ALLOWED_ORIGINS` environment variable to your domain:
+## Testing
 
 ```bash
-# Development (default)
-FORGE_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:5173
+# Backend tests
+go test ./...
 
-# Production example
-FORGE_ALLOWED_ORIGINS=https://myapp.example.com
-
-# Multiple production origins
-FORGE_ALLOWED_ORIGINS=https://myapp.example.com,https://admin.example.com
+# Frontend tests
+cd frontend
+npm run test           # Unit tests
+npm run test:e2e       # Playwright E2E tests
 ```
 
-The server logs allowed origins on startup for verification.
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.

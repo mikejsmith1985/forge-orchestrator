@@ -1,6 +1,6 @@
 # Forge Orchestrator - User Guide
 
-**Version:** 1.1.0  
+**Version:** 2.1.0  
 **Last Updated:** December 2024
 
 Welcome to Forge Orchestrator! This guide will walk you through every feature in plain, easy-to-understand language.
@@ -10,7 +10,7 @@ Welcome to Forge Orchestrator! This guide will walk you through every feature in
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Welcome Screen](#welcome-screen)
+2. [Terminal (Home View)](#terminal-home-view)
 3. [Navigation (Sidebar)](#navigation-sidebar)
 4. [Architect View](#architect-view)
 5. [Dashboard / Ledger](#dashboard--ledger)
@@ -26,41 +26,69 @@ Welcome to Forge Orchestrator! This guide will walk you through every feature in
 
 ### What is Forge Orchestrator?
 
-Forge Orchestrator is your AI workflow command center. Think of it like a control panel for managing AI interactions, tracking how much you're using, and creating automated workflows.
+Forge Orchestrator is your **terminal-first AI workflow command center**. At its heart is a real terminal (PTY) where you can type commands and see actual shell output. Around that terminal, you get:
+
+- Token usage tracking for AI providers
+- Visual workflow automation
+- Secure API key management
+- Command shortcuts
 
 ### How to Launch
 
-1. Double-click the `forge-orchestrator` application file
-2. A browser window will automatically open
-3. The app runs at `http://localhost:8080` by default
+1. Run the `forge-orchestrator` binary
+2. Open your browser to `http://localhost:8080` (or the URL shown in the terminal)
+3. You'll land on the **Terminal** view - your primary workspace
 
 ---
 
-## Welcome Screen
+## Terminal (Home View)
 
 ### What It Does
 
-- Shows you an overview of all the features when you first open the app
-- Appears automatically the first time you use the app
-- Also shows up after you update to a new version
+The Terminal is Forge Orchestrator's **main feature**. It's a real shell running on your machine, streamed to your browser. Everything you type executes in your actual environment.
+
+### The Interface
+
+| Element | Description |
+|---------|-------------|
+| 🔴🟡🟢 Traffic Lights | Decorative header (macOS style) |
+| "Terminal" Label | Shows you're in the terminal view |
+| Green/Red Dot | Connection status (green = connected) |
+| **Prompt Watcher** Toggle | Auto-respond to y/n prompts |
+| Terminal Area | Where you type and see output |
 
 ### How to Use It
 
-1. **Read the features** - The welcome screen shows 6 main things you can do:
-   - **Architect** - Write down your ideas and see token counts
-   - **Ledger** - Track how many tokens you've used
-   - **Flows** - Create visual workflows connecting AI agents
-   - **Commands** - Save frequently-used commands
-   - **API Keys** - Set up your AI provider credentials
-   - **Optimization** - Get suggestions to save tokens
+1. **Type commands** - Just like any terminal
+   ```bash
+   ls -la
+   git status
+   npm install
+   ```
 
-2. **Dismiss it** - You can close the welcome screen by:
-   - Clicking the **"Get Started"** button
-   - Pressing the **Escape** key
-   - Pressing **Enter** or **Space**
-   - Clicking the **X** in the corner
+2. **See output** - Real shell output appears in real-time
 
-3. **Won't annoy you** - Once you close it, it won't show again until you update to a new version
+3. **Connection indicator** - The small dot shows:
+   - 🟢 Green = Connected and ready
+   - 🔴 Red = Disconnected (will auto-reconnect)
+
+### Prompt Watcher
+
+The **Prompt Watcher** button in the top-right corner enables automatic responses to confirmation prompts:
+
+- **Off (default)**: You manually respond to "Continue? [y/n]" prompts
+- **On (blue)**: Automatically sends "y" when it detects prompts like:
+  - `[y/n]`
+  - `[Y/n]`
+  - `Continue?`
+  - `Are you sure?`
+
+**Use cases:**
+- Unattended installations (`npm install`, `apt-get`)
+- Batch operations that need confirmation
+- Automated testing scripts
+
+⚠️ **Use with caution** - This will auto-confirm potentially destructive operations!
 
 ---
 
@@ -74,6 +102,7 @@ The sidebar is your main menu on the left side of the screen. It lets you jump b
 
 | Icon | Name | What It Does |
 |------|------|--------------|
+| 🖥️ | **Terminal** | Your main shell (default view) |
 | 🧠 | Architect | Write ideas and count tokens |
 | 📊 | Dashboard | View your token usage history |
 | ⚡ | Commands | Manage saved commands |
@@ -103,24 +132,24 @@ The Architect is where you "brain dump" your ideas. It's like a notepad that als
 
 ### How to Use It
 
-1. **Navigate there** - Click "Architect" in the sidebar (or go to `/architect`)
+1. **Navigate there** - Click "Architect" in the sidebar
 
-2. **Type your ideas** - Click in the big text box and start typing whatever you want:
+2. **Type your ideas** - Click in the big text box and start typing:
    - Project requirements
    - Task descriptions
    - Questions for AI
-   - Anything!
 
-3. **Watch the token counter** - As you type, the bottom of the screen shows:
-   - **Token count** - How many tokens your text uses
-   - **Method** - How the tokens were counted (tiktoken = accurate, heuristic = estimate)
-   - **Provider** - Which AI provider the count is for (like OpenAI)
+3. **Watch the token counter** - The bottom shows:
+   - 🪙 **Token count** - How many tokens your text uses
+   - **Method** - tiktoken (accurate) or heuristic (estimate)
+   - **Provider** - Which AI provider the count is for
 
-### Tips
+### Dynamic Budget Meter
 
-- Tokens are like "word pieces" that AI uses to understand text
-- More tokens = more cost when using AI
-- The counter updates automatically as you type (with a small delay)
+The token meter now shows your budget in the correct currency:
+
+- **🪙 tokens** - For providers like OpenAI/Anthropic
+- **💬 prompts** - For per-request pricing models
 
 ---
 
@@ -128,27 +157,31 @@ The Architect is where you "brain dump" your ideas. It's like a notepad that als
 
 ### What It Does
 
-The Ledger is your token usage history. It shows every interaction you've had and how many tokens were used.
+The Ledger is your token usage history. It shows every AI interaction and how much it cost.
 
 ### How to Use It
 
-1. **Navigate there** - Click "Dashboard" in the sidebar (or go to `/ledger`)
+1. **Navigate there** - Click "Dashboard" in the sidebar
 
-2. **View your history** - You'll see a list of past interactions showing:
-   - When it happened
-   - What was sent/received
-   - How many tokens were used
-   - Which AI provider was used
+2. **View your history** - Each row shows:
+   - Timestamp
+   - Flow ID
+   - Model used
+   - **Usage** (dynamic based on billing type):
+     - Token-based: Shows ↓ input / ↑ output tokens
+     - Prompt-based: Shows number of prompts
+   - Latency
+   - Cost in USD
+   - Status
 
-3. **Look for patterns** - Use this to:
-   - See which tasks use the most tokens
-   - Track your usage over time
-   - Find opportunities to save tokens
+3. **Cost Unit Badge** - Each entry shows its billing type:
+   - 🪙 **Per-Token** - Traditional token billing
+   - 💬 **Per-Prompt** - Per-request billing
 
 ### Optimization Suggestions
 
 - The system analyzes your usage patterns
-- It suggests ways to reduce token usage
+- It suggests ways to reduce costs
 - Click "Apply" on any suggestion to implement it
 
 ---
@@ -157,38 +190,31 @@ The Ledger is your token usage history. It shows every interaction you've had an
 
 ### What It Does
 
-Commands are like shortcuts. You save commands you use often, then run them with one click.
+Commands are like shortcuts. Save commands you use often, then run them with one click.
 
 ### How to Use It
 
-1. **Navigate there** - Click "Commands" in the sidebar (or go to `/commands`)
+1. **Navigate there** - Click "Commands" in the sidebar
 
-2. **View your commands** - See all your saved commands as cards
+2. **View your commands** - See all saved commands as cards
 
 3. **Create a new command:**
-   - Click the **"Add Command"** or **"+"** button
-   - Give it a name (like "List Files")
-   - Enter the actual command (like `ls -la`)
-   - Optionally assign a keyboard shortcut
+   - Click the **"Add Command"** button
+   - Give it a name (like "Run Tests")
+   - Enter the command (`npm test`)
    - Click **Save**
 
 4. **Run a command:**
    - Click on any command card
-   - Or use the keyboard shortcut you assigned
+   - The command is sent to the Terminal
 
-5. **Edit a command:**
-   - Click the edit/pencil icon on any command card
-   - Make your changes
-   - Click Save
-
-6. **Delete a command:**
-   - Click the delete/trash icon on any command card
-   - Confirm you want to delete it
+5. **Edit/Delete:**
+   - Use the edit/delete icons on each card
 
 ### Keyboard Shortcuts
 
-- First 10 commands get shortcuts: `Ctrl+Shift+1` through `Ctrl+Shift+0`
-- Additional commands get letter shortcuts: `Ctrl+Shift+A`, `Ctrl+Shift+B`, etc.
+- First 10 commands: `Ctrl+Shift+1` through `Ctrl+Shift+0`
+- Additional commands: `Ctrl+Shift+A`, `Ctrl+Shift+B`, etc.
 
 ---
 
@@ -196,42 +222,55 @@ Commands are like shortcuts. You save commands you use often, then run them with
 
 ### What It Does
 
-Flows let you create visual workflows that connect different AI agents together. Think of it like drawing a flowchart where each box does something.
+Flows let you create visual workflows that chain together shell commands and AI operations.
+
+### The New Node Types (V2.1)
+
+Flows now have **two distinct node types**:
+
+| Node Type | Badge | Token Cost | Use For |
+|-----------|-------|------------|---------|
+| **Shell Command** | ⚡ Zero-Token | Free | Local scripts, git, npm |
+| **LLM Prompt** | 💎 Premium | Uses budget | AI-powered tasks |
 
 ### How to Use It
 
-1. **Navigate there** - Click "Flows" in the sidebar (or go to `/flows`)
+1. **Navigate there** - Click "Flows" in the sidebar
 
-2. **View your flows** - See a list of all your saved workflows
+2. **Create a new flow** - Click **"Create New Flow"**
 
-3. **Create a new flow:**
-   - Click **"New Flow"** or **"+"** button
-   - You'll enter the flow editor
+3. **Drag nodes** from the sidebar:
+   - **Shell Command** (green) - For local execution
+   - **LLM Prompt** (purple) - For AI operations
+   - **Input/Output** nodes - For data flow
 
-4. **In the Flow Editor:**
-   - **Add nodes** - Click and drag to add new steps
-   - **Connect nodes** - Draw lines between nodes to show the order
-   - **Configure nodes** - Click on a node to set what it does
-   - **Name your flow** - Give it a meaningful name at the top
+4. **Configure a node** - Click on it to open the config panel:
+   - **Label** - Give it a meaningful name
+   - **Node Type** - Switch between Shell and LLM
+   - **Command/Prompt** - The actual command to run
 
-5. **Node Types:**
-   - **Input** - Where data comes in
-   - **AI Agent** - Processes with an AI model
-   - **Output** - Where results go
-   - **Condition** - Makes decisions based on data
+5. **Connect nodes** - Drag from output handles to input handles
 
-6. **Save your flow:**
-   - Click the **Save** button
-   - Your flow appears in the flows list
+6. **Save and Execute** - Use the toolbar buttons
 
-7. **Run a flow:**
-   - Click the **Run** or **Execute** button
-   - Watch as each node processes in order
-   - See the results when it finishes
+### Premium Confirmation Modal
 
-8. **Delete a flow:**
-   - Click the delete icon on any flow in the list
-   - Confirm deletion
+When you configure an **LLM Prompt node**:
+
+1. Fill in your prompt
+2. Click **Save**
+3. A **confirmation modal** appears showing:
+   - Estimated token cost
+   - Warning that this uses premium budget
+4. Click **Confirm & Save** to proceed
+
+This prevents accidental token spending!
+
+### Example Flow
+
+```
+[Input] → [Shell: git status] → [LLM: Summarize changes] → [Shell: create-pr.sh] → [Output]
+```
 
 ---
 
@@ -239,43 +278,36 @@ Flows let you create visual workflows that connect different AI agents together.
 
 ### What It Does
 
-This is where you set up your AI provider credentials. You need API keys to use AI services like Anthropic (Claude), OpenAI (ChatGPT), or Google.
+This is where you set up your AI provider credentials securely.
+
+### Security Assurance
+
+At the top of the Settings page, you'll see a **security notice**:
+
+> 🔐 **Secure Storage**
+> Your API keys are **encrypted** and stored in your operating system's native keyring (macOS Keychain, Windows Credential Manager, or Linux Secret Service). Keys are **never** exposed to the browser or stored in plain text.
 
 ### How to Use It
 
-1. **Navigate there** - Click "Settings" in the sidebar (or go to `/settings`)
+1. **Navigate there** - Click "Settings" in the sidebar
 
 2. **See available providers:**
    - **Anthropic** - For Claude AI
    - **OpenAI** - For ChatGPT/GPT-4
-   - **Google** - For Gemini
 
 3. **Check the status:**
-   - ✅ **Green checkmark** = Key is configured
-   - ❌ **Red X** = Key is not set up
+   - ✅ **Configured** = Key is set
+   - ❌ **Not Configured** = Key needed
 
 4. **Add or update a key:**
-   - Find the provider you want (like "Anthropic")
    - Paste your API key in the password field
-   - Click the **"Save Key"** button
-   - You'll see a green success message
-
-5. **If it fails:**
-   - You'll see a red error message
-   - Check that your key is correct
-   - Make sure you copied the whole key
+   - Click **"Save Key"**
+   - See green success message
 
 ### Where to Get API Keys
 
 - **Anthropic:** https://console.anthropic.com/
 - **OpenAI:** https://platform.openai.com/api-keys
-- **Google:** https://makersuite.google.com/app/apikey
-
-### Security Note
-
-- Your keys are stored securely in your system's keyring
-- They are never displayed after you save them
-- They never leave your computer (except to authenticate with the AI provider)
 
 ---
 
@@ -283,138 +315,91 @@ This is where you set up your AI provider credentials. You need API keys to use 
 
 ### What It Does
 
-Found a bug? Have an idea? The feedback feature lets you report issues directly to the developers with screenshots and logs included.
+Report bugs or suggest features directly to the developers with screenshots included.
 
 ### How to Use It
 
-1. **Open the feedback form:**
-   - Click **"Send Feedback"** in the sidebar
-   - A popup window appears
+1. **Open the form** - Click "Send Feedback" in the sidebar
 
-2. **First-time setup (one time only):**
+2. **First-time setup:**
    - You need a GitHub Personal Access Token
-   - Click the **"Generate Token"** link
-   - GitHub opens - follow the prompts to create a token
-   - Copy the token (starts with `ghp_`)
-   - Paste it in the token field
-   - Click **"Save Settings"**
+   - Click the link to generate one
+   - Paste it and click **Save Settings**
 
 3. **Write your feedback:**
-   - Describe the issue or suggestion in the text box
-   - Be specific! Include:
-     - What you were doing
-     - What you expected to happen
-     - What actually happened
+   - Describe the issue clearly
+   - What you were doing
+   - What went wrong
 
-4. **Add screenshots (optional but helpful):**
+4. **Add screenshots:**
    - Click **"Capture Screen"**
-   - The app takes a screenshot of what's behind the popup
-   - You can capture multiple screenshots
-   - Click the **X** on any screenshot to remove it
+   - Remove any with the X button
 
-5. **Submit your feedback:**
-   - Click **"Submit Feedback"**
-   - Wait for the upload to complete
-   - You'll see a success message with a link to your issue
-
-6. **Cancel anytime:**
-   - Click **"Cancel"** or the **X** to close without submitting
-   - Your screenshots are saved if you reopen the form
-
-### What Gets Sent
-
-- Your description
-- Your screenshots (uploaded to GitHub)
-- Your browser info (to help debug)
-- Recent application logs (to help find the bug)
+5. **Submit** - Click **Submit Feedback**
 
 ---
 
 ## Updates
 
-### What It Does
-
-The app can check for new versions and help you update.
-
 ### How Updates Work
 
-1. **Automatic checking:**
-   - The app checks for updates when you open it
-   - It also checks every 30 minutes
+1. **Automatic checking** - Checks on startup and every 30 minutes
 
-2. **When an update is available:**
-   - A purple **"Update Available"** button appears in the sidebar
-   - A small notification may pop up
+2. **When available:**
+   - Purple **"Update Available"** button appears
+   - Click to see what's new
 
-3. **View update details:**
-   - Click the purple button or the notification
-   - A popup shows:
-     - Current version
-     - New version
-     - What's changed (release notes)
+3. **Download:**
+   - Click **Download** in the update modal
+   - Follow installation prompts
 
-4. **Download the update:**
-   - Click the **"Download"** button
-   - The new version downloads
-   - Follow any prompts to install
-
-5. **Dismiss for later:**
-   - Click **"Later"** or close the popup
-   - The reminder won't show again for 24 hours
-   - The purple button stays visible
-
-### Checking Manually
-
-- Click on the version number in the sidebar (like "v1.1.0")
-- This opens the update popup even if no update is available
+4. **Check manually:**
+   - Click the version number in the sidebar
 
 ---
 
-## Keyboard Shortcuts Summary
+## Keyboard Shortcuts
 
 | Shortcut | What It Does |
 |----------|--------------|
 | `Ctrl+Shift+1-9` | Run commands 1-9 |
 | `Ctrl+Shift+0` | Run command 10 |
 | `Ctrl+Shift+A-Z` | Run commands 11+ |
-| `Escape` | Close popups/modals |
-| `Enter` / `Space` | Dismiss welcome screen |
+| `Escape` | Close modals |
 
 ---
 
 ## Troubleshooting
 
-### App Won't Start
+### Terminal Shows "Disconnected"
 
-- Make sure no other program is using port 8080
-- Try running as administrator
-- Check if your antivirus is blocking it
+- The backend may not be running
+- Check that `forge-orchestrator` is running in your terminal
+- Refresh the page to reconnect
 
 ### API Key Won't Save
 
 - Make sure you copied the entire key
 - Check your internet connection
-- Try a different browser
+- Verify the key starts with the expected prefix (e.g., `sk-` for OpenAI)
 
-### Feedback Won't Submit
+### Flow Nodes Not Saving
 
-- Verify your GitHub token is correct
-- Make sure the token has `public_repo` permission
-- Check your internet connection
+- For LLM nodes, you must confirm the premium modal
+- Make sure you entered a command/prompt
 
 ### Updates Not Showing
 
 - Click the version number to manually check
-- Make sure you're connected to the internet
-- Try restarting the app
+- Check your internet connection
 
 ---
 
 ## Getting Help
 
-- **Send Feedback** - Use the built-in feedback feature
+- **Send Feedback** - Use the built-in feature
 - **GitHub Issues** - Visit the project repository
-- **Documentation** - Check the Project Documentation folder
+- **Documentation** - Check the `docs/` folder
 
 ---
 
