@@ -101,6 +101,16 @@ jobs:
           go build -ldflags="-s -w -H windowsgui -X github.com/mikejsmith1985/forge-orchestrator/internal/updater.Version=${{ steps.version.outputs.VERSION }}" \
             -o forge-orchestrator-windows-amd64.exe .
 
+      - name: Generate Handshake Document
+        run: |
+          chmod +x scripts/generate-handshake.sh
+          ./scripts/generate-handshake.sh
+
+      - name: Validate Handshake Document
+        run: |
+          chmod +x scripts/validate-handshake.sh
+          ./scripts/validate-handshake.sh
+
       - name: Generate Release Notes
         run: |
           cat > release_notes.md << 'NOTES'
@@ -151,6 +161,7 @@ jobs:
             forge-orchestrator-linux-amd64
             forge-orchestrator-darwin-amd64
             forge-orchestrator-windows-amd64.exe
+            FORGE_HANDSHAKE.md
           body_path: release_notes.md
           draft: false
           prerelease: false
