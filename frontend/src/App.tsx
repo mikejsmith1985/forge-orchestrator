@@ -101,16 +101,23 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Check welcome status on mount
-    checkWelcome();
+    // Use setTimeout to avoid synchronous setState in effect body
+    const welcomeTimeout = setTimeout(() => {
+      checkWelcome();
+    }, 0);
     
-    // Check for updates on mount
-    checkForUpdates();
+    const updateTimeout = setTimeout(() => {
+      checkForUpdates();
+    }, 0);
     
     // Check for updates every 30 minutes
     const interval = setInterval(checkForUpdates, 30 * 60 * 1000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(welcomeTimeout);
+      clearTimeout(updateTimeout);
+      clearInterval(interval);
+    };
   }, [checkWelcome, checkForUpdates]);
 
   const handleViewUpdate = () => {

@@ -28,9 +28,6 @@ test.describe('Forge Vision Component', () => {
         const toggle = page.getByTestId('prompt-watcher-toggle');
         await expect(toggle).toBeVisible();
         
-        // Initial state - should not have active class
-        const initialClasses = await toggle.getAttribute('class');
-        
         // Click to toggle
         await toggle.click();
         

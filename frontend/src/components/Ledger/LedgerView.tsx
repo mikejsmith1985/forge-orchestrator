@@ -126,17 +126,18 @@ export function LedgerView() {
         if (!lastMessage) return;
 
         const { type, payload } = lastMessage;
+        const data = payload as { flowId?: string; error?: string };
 
         switch (type) {
             case 'FLOW_STARTED':
-                addToast(`Flow ${payload.flowId} started`, 'info');
+                addToast(`Flow ${data.flowId} started`, 'info');
                 break;
             case 'FLOW_COMPLETED':
-                addToast(`Flow ${payload.flowId} completed`, 'success');
+                addToast(`Flow ${data.flowId} completed`, 'success');
                 fetchData(); // Refresh ledger
                 break;
             case 'FLOW_FAILED':
-                addToast(`Flow ${payload.flowId} failed: ${payload.error}`, 'error');
+                addToast(`Flow ${data.flowId} failed: ${data.error}`, 'error');
                 fetchData(); // Refresh ledger to show failed entries
                 break;
             case 'LEDGER_UPDATE':

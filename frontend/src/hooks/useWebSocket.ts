@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface WebSocketMessage {
   type: string;
-  payload: any;
+  payload: unknown;
 }
 
 interface UseWebSocketReturn {
@@ -35,6 +35,7 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}): Us
   const disconnectedAtRef = useRef<number | null>(null);
   const disconnectedIntervalRef = useRef<number | undefined>(undefined);
   const pollingIntervalRef = useRef<number | undefined>(undefined);
+  const connectRef = useRef<(() => void) | null>(null);
 
   // Poll for flow status when WebSocket is disconnected
   const pollFlowStatus = useCallback(async () => {
@@ -60,11 +61,18 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}): Us
     if (!isConnected && disconnectedDuration >= POLLING_THRESHOLD && pollingFlowId) {
       console.log(`WebSocket disconnected for ${disconnectedDuration}ms, starting polling`);
       
-      // Start polling immediately
-      pollFlowStatus();
+      // Start polling immediately (wrapped in setTimeout to avoid sync setState)
+      const immediateTimeout = setTimeout(() => pollFlowStatus(), 0);
       
       // Set up polling interval
       pollingIntervalRef.current = window.setInterval(pollFlowStatus, pollingInterval);
+
+      return () => {
+        clearTimeout(immediateTimeout);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+      };
     } else if (isConnected && pollingIntervalRef.current) {
       // Stop polling when WebSocket reconnects
       console.log('WebSocket reconnected, stopping polling');
@@ -93,7 +101,8 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}): Us
       }, 1000);
     } else {
       disconnectedAtRef.current = null;
-      setDisconnectedDuration(0);
+      // Use setTimeout to avoid sync setState in effect
+      setTimeout(() => setDisconnectedDuration(0), 0);
       if (disconnectedIntervalRef.current) {
         clearInterval(disconnectedIntervalRef.current);
       }
@@ -146,7 +155,7 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}): Us
           
           reconnectTimeoutRef.current = window.setTimeout(() => {
             reconnectAttemptsRef.current++;
-            connect();
+            connectRef.current?.();
           }, delay);
         } else {
           console.error('Max reconnection attempts reached');
@@ -156,6 +165,11 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}): Us
       console.error('Error creating WebSocket connection:', error);
     }
   }, [url]);
+
+  // Keep connectRef in sync with connect
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     connect();
