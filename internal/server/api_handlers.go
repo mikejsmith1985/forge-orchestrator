@@ -41,6 +41,25 @@ type ExecuteResponse struct {
 	Success bool `json:"success"`
 }
 
+// PTYCommandRequest represents the JSON payload for injecting commands into PTY.
+// Task 2.2: This is used by Flow Nodes and Command Cards to execute in the terminal.
+type PTYCommandRequest struct {
+	// SessionID identifies which PTY session to inject the command into.
+	SessionID string `json:"sessionId"`
+
+	// Command is the command string to inject (simulates typing).
+	Command string `json:"command"`
+}
+
+// PTYCommandResponse represents the response from PTY command injection.
+type PTYCommandResponse struct {
+	// Success indicates whether the command was injected successfully.
+	Success bool `json:"success"`
+
+	// Message is a human-readable status message.
+	Message string `json:"message"`
+}
+
 // executor is the Executor interface instance used for running commands.
 // We use the interface type so we can swap implementations (e.g., for testing).
 var executor execution.Executor
@@ -128,4 +147,57 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	// Return the response.
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// handlePTYCommandExecute injects a command into an active PTY session.
+// Task 2.2: This is the API used by Flow Nodes and Command Cards to execute
+// commands in the integrated terminal, simulating a human typing.
+func (s *Server) handlePTYCommandExecute(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var req PTYCommandRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(PTYCommandResponse{
+			Success: false,
+			Message: "Invalid request body: " + err.Error(),
+		})
+		return
+	}
+
+	if req.Command == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(PTYCommandResponse{
+			Success: false,
+			Message: "Command is required",
+		})
+		return
+	}
+
+	// Get the PTY session
+	session := s.ptyManager.GetSession(req.SessionID)
+	if session == nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(PTYCommandResponse{
+			Success: false,
+			Message: "PTY session not found",
+		})
+		return
+	}
+
+	// Write the command to the PTY (simulates typing + Enter)
+	if err := session.WriteCommand(req.Command); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(PTYCommandResponse{
+			Success: false,
+			Message: "Failed to inject command: " + err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(PTYCommandResponse{
+		Success: true,
+		Message: "Command injected successfully",
+	})
 }

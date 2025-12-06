@@ -7,17 +7,19 @@ import (
 )
 
 type Server struct {
-	db      *sql.DB
-	gateway *llm.Gateway
-	hub     *Hub
+	db         *sql.DB
+	gateway    *llm.Gateway
+	hub        *Hub
+	ptyManager *PTYManager
 }
 
 func NewServer(db *sql.DB) *Server {
 	hub := NewHub()
 	go hub.Run()
 	return &Server{
-		db:      db,
-		gateway: llm.NewGateway(),
-		hub:     hub,
+		db:         db,
+		gateway:    llm.NewGateway(),
+		hub:        hub,
+		ptyManager: NewPTYManager(),
 	}
 }

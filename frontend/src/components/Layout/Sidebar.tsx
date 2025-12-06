@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit, Workflow, Download } from 'lucide-react';
+import { LayoutDashboard, GitGraph, Settings, Menu, X, BrainCircuit, Workflow, Download, MessageSquare, TerminalSquare } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -7,14 +7,16 @@ interface SidebarProps {
     currentVersion?: string;
     hasUpdate?: boolean;
     onUpdateClick?: () => void;
+    onFeedbackClick?: () => void;
 }
 
-export function Sidebar({ currentVersion, hasUpdate, onUpdateClick }: SidebarProps) {
+export function Sidebar({ currentVersion, hasUpdate, onUpdateClick, onFeedbackClick }: SidebarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
     const navItems = [
+        { icon: TerminalSquare, label: 'Terminal', path: '/terminal' },
         { icon: BrainCircuit, label: 'Architect', path: '/architect' },
         { icon: LayoutDashboard, label: 'Dashboard', path: '/ledger' },
         { icon: GitGraph, label: 'Commands', path: '/commands' },
@@ -83,6 +85,16 @@ export function Sidebar({ currentVersion, hasUpdate, onUpdateClick }: SidebarPro
 
                     {/* Footer */}
                     <div className="p-4 border-t border-white/10 space-y-3">
+                        {/* Feedback Button */}
+                        <button
+                            onClick={onFeedbackClick}
+                            className="flex items-center w-full px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 hover:text-white transition-colors text-sm"
+                            aria-label="Send Feedback"
+                        >
+                            <MessageSquare size={16} className="mr-2" />
+                            Send Feedback
+                        </button>
+
                         {/* Update Available Button */}
                         {hasUpdate && (
                             <button

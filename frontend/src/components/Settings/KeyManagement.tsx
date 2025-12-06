@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Key, CheckCircle, XCircle, Loader2, Save } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useToastContext } from '../../lib/ToastContext';
 
-// Educational Comment: Defining the shape of our key status data
 interface KeyStatus {
     provider: string;
     isSet: boolean;
+}
+
+interface KeyStatusResponse {
+    keys: KeyStatus[];
+}
+
+interface SaveKeyResponse {
+    status: string;
+    message: string;
 }
 
 export function KeyManagement() {
@@ -13,8 +22,8 @@ export function KeyManagement() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState<string | null>(null);
     const [inputs, setInputs] = useState<Record<string, string>>({});
+    const toast = useToastContext();
 
-    // Educational Comment: Fetch initial status on mount
     useEffect(() => {
         fetchStatus();
     }, []);
@@ -22,12 +31,14 @@ export function KeyManagement() {
     const fetchStatus = async () => {
         try {
             const response = await fetch('/api/keys/status');
-            if (response.ok) {
-                const data = await response.json();
-                setStatuses(data.keys || []);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
+            const data: KeyStatusResponse = await response.json();
+            setStatuses(data.keys || []);
         } catch (error) {
             console.error('Failed to fetch key status:', error);
+            toast.error('Failed to load API key status');
         } finally {
             setLoading(false);
         }
@@ -39,27 +50,30 @@ export function KeyManagement() {
 
         setSaving(provider);
         try {
-            // Educational Comment: We send the key to the backend via POST.
-            // The backend is responsible for securely storing it (e.g., in the system keyring).
-            // We never read the key back to the frontend for security reasons.
             const response = await fetch('/api/keys', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ provider, key }),
             });
 
-            if (response.ok) {
-                await fetchStatus();
-                setInputs(prev => ({ ...prev, [provider]: '' })); // Clear input on success
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `HTTP ${response.status}`);
             }
+
+            const data: SaveKeyResponse = await response.json();
+            toast.success(data.message || 'API key saved successfully');
+            
+            await fetchStatus();
+            setInputs(prev => ({ ...prev, [provider]: '' }));
         } catch (error) {
             console.error('Failed to save key:', error);
+            toast.error(`Failed to save API key: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setSaving(null);
         }
     };
 
-    // Educational Comment: Helper to get the status icon based on isSet state
     const getStatusIcon = (isSet: boolean) => {
         if (isSet) {
             return <CheckCircle className="w-5 h-5 text-green-500" />;
@@ -67,7 +81,7 @@ export function KeyManagement() {
         return <XCircle className="w-5 h-5 text-red-500" />;
     };
 
-    // Default providers if API fails or returns empty (for initial UI state)
+    // Default providers if API fails or returns empty
     const displayProviders = statuses.length > 0 ? statuses : [
         { provider: 'anthropic', isSet: false },
         { provider: 'openai', isSet: false }
@@ -81,8 +95,26 @@ export function KeyManagement() {
                     Key Management
                 </h2>
                 <p className="text-gray-400">
-                    Securely manage your API keys. Keys are stored in your system's secure keyring and are never displayed.
+                    Securely manage your API keys for LLM providers.
                 </p>
+                {/* Task 4.1: Security Assurance Text */}
+                <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg" data-testid="security-assurance">
+                    <div className="flex items-start gap-3">
+                        <div className="p-1 bg-green-500/20 rounded">
+                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 className="text-green-400 font-semibold mb-1">🔐 Secure Storage</h3>
+                            <p className="text-sm text-green-300/80">
+                                Your API keys are <strong>encrypted</strong> and stored securely in your operating system's native keyring 
+                                (macOS Keychain, Windows Credential Manager, or Linux Secret Service). 
+                                Keys are <strong>never</strong> exposed to the browser or stored in plain text.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="grid gap-6">

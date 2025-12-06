@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
 	"github.com/zalando/go-keyring"
@@ -14,10 +15,24 @@ type SetAPIKeyRequest struct {
 	Key      string `json:"key"`
 }
 
+// SetAPIKeyResponse represents the response after setting an API key.
+type SetAPIKeyResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// KeyStatus represents the status of a single API key provider.
+type KeyStatus struct {
+	Provider string `json:"provider"`
+	IsSet    bool   `json:"isSet"`
+}
+
+// KeyStatusResponse represents the response for the key status endpoint.
+type KeyStatusResponse struct {
+	Keys []KeyStatus `json:"keys"`
+}
+
 // handleSetAPIKey stores an API key in the secure keyring.
-// Educational Comment: We decode the JSON body, validate the input, and then
-// delegate the storage to the security package. This keeps the handler logic
-// clean and focused on HTTP concerns.
 func (s *Server) handleSetAPIKey(w http.ResponseWriter, r *http.Request) {
 	var req SetAPIKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -35,35 +50,33 @@ func (s *Server) handleSetAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status": "ok"}`))
+	json.NewEncoder(w).Encode(SetAPIKeyResponse{
+		Status:  "ok",
+		Message: "API key saved successfully",
+	})
 }
 
 // handleGetAPIKeyStatus checks which API keys are present in the keyring.
-// Educational Comment: For security reasons, we never return the actual API keys.
-// Instead, we return a boolean status indicating whether a key exists for each
-// known provider. This allows the frontend to show a "configured" state without
-// exposing secrets.
+// Returns a structured response with lowercase provider names for frontend consistency.
 func (s *Server) handleGetAPIKeyStatus(w http.ResponseWriter, r *http.Request) {
-	// List of providers to check. In a real app, this might be dynamic or from a config.
+	// List of providers to check
 	providers := []string{"Anthropic", "OpenAI", "Google"}
-	status := make(map[string]bool)
+	keys := make([]KeyStatus, 0, len(providers))
 
 	for _, p := range providers {
 		_, err := security.GetAPIKey(p)
-		if err == nil {
-			status[p] = true
-		} else if err == keyring.ErrNotFound {
-			status[p] = false
-		} else {
-			// If there's an error other than NotFound, we might log it but still return false
-			// or handle it differently. For now, we assume false implies "not available".
-			status[p] = false
-		}
+		isSet := err == nil
+
+		keys = append(keys, KeyStatus{
+			Provider: strings.ToLower(p),
+			IsSet:    isSet,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	json.NewEncoder(w).Encode(KeyStatusResponse{Keys: keys})
 }
 
 // handleDeleteAPIKey removes an API key from the keyring.

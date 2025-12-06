@@ -1,6 +1,6 @@
 {
   "flowId": 99999,
   "status": "FAILED",
-  "updatedAt": "2025-12-05T13:37:28.481395959-05:00",
+  "updatedAt": "2025-12-05T14:38:21.634435549-05:00",
   "error": "failed to fetch flow: sql: no rows in result set"
 }

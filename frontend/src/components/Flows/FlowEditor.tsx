@@ -125,16 +125,39 @@ const FlowEditorContent: React.FC = () => {
                 y: event.clientY,
             });
 
-            // Use 'agent' type for default nodes to get custom AgentNode component
-            const nodeType = type === 'default' ? 'agent' : type;
+            // Task 3.2: Handle distinct node types (shell and llm)
+            let nodeType = type;
+            let nodeData: AgentNodeData;
+
+            if (type === 'shell') {
+                nodeType = 'agent';
+                nodeData = {
+                    label: 'Shell Command',
+                    nodeType: 'shell',
+                };
+            } else if (type === 'llm') {
+                nodeType = 'agent';
+                nodeData = {
+                    label: 'LLM Prompt',
+                    nodeType: 'llm',
+                };
+            } else if (type === 'default') {
+                nodeType = 'agent';
+                nodeData = {
+                    label: 'Agent Node',
+                    nodeType: 'shell',
+                };
+            } else {
+                nodeData = {
+                    label: `${type} node`,
+                };
+            }
+
             const newNode: Node<AgentNodeData> = {
                 id: `${type}-${nodes.length + 1}-${Date.now()}`,
                 type: nodeType,
                 position,
-                data: { 
-                    label: type === 'default' ? 'Agent Node' : `${type} node`,
-                    // Leave role, provider, prompt undefined so node shows as unconfigured
-                },
+                data: nodeData,
             };
 
             setNodes((nds) => nds.concat(newNode));
@@ -322,6 +345,7 @@ const FlowEditorContent: React.FC = () => {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar for Drag & Drop */}
+                {/* Sidebar for Drag & Drop - Task 3.2: Distinct Node Types */}
                 <div className="w-64 bg-slate-800 border-r border-slate-700 p-4 flex flex-col gap-4">
                     <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
                         Components
@@ -337,17 +361,39 @@ const FlowEditorContent: React.FC = () => {
                             <div className="w-3 h-3 rounded-full bg-blue-500" />
                             <span className="text-sm text-white">Input Node</span>
                         </div>
+                        
+                        {/* Shell Command Node - Zero Token */}
                         <div
-                            className="bg-slate-700 p-3 rounded-lg cursor-grab hover:bg-slate-600 transition-colors border border-slate-600 flex items-center gap-2"
+                            className="bg-green-900/30 p-3 rounded-lg cursor-grab hover:bg-green-800/40 transition-colors border border-green-500/30 flex items-center gap-2"
                             onDragStart={(event) =>
-                                event.dataTransfer.setData('application/reactflow', 'default')
+                                event.dataTransfer.setData('application/reactflow', 'shell')
                             }
                             draggable
-                            data-testid="agent-node-drag"
+                            data-testid="shell-node-drag"
                         >
-                            <div className="w-3 h-3 rounded-full bg-slate-400" />
-                            <span className="text-sm text-white">Agent Node</span>
+                            <div className="w-3 h-3 rounded-full bg-green-500" />
+                            <div className="flex-1">
+                                <span className="text-sm text-white block">Shell Command</span>
+                                <span className="text-xs text-green-400">⚡ Zero-Token</span>
+                            </div>
                         </div>
+                        
+                        {/* LLM Prompt Node - Premium */}
+                        <div
+                            className="bg-purple-900/30 p-3 rounded-lg cursor-grab hover:bg-purple-800/40 transition-colors border border-purple-500/30 flex items-center gap-2"
+                            onDragStart={(event) =>
+                                event.dataTransfer.setData('application/reactflow', 'llm')
+                            }
+                            draggable
+                            data-testid="llm-node-drag"
+                        >
+                            <div className="w-3 h-3 rounded-full bg-purple-500" />
+                            <div className="flex-1">
+                                <span className="text-sm text-white block">LLM Prompt</span>
+                                <span className="text-xs text-purple-400">💎 Premium</span>
+                            </div>
+                        </div>
+                        
                         <div
                             className="bg-slate-700 p-3 rounded-lg cursor-grab hover:bg-slate-600 transition-colors border border-slate-600 flex items-center gap-2"
                             onDragStart={(event) =>
@@ -355,7 +401,7 @@ const FlowEditorContent: React.FC = () => {
                             }
                             draggable
                         >
-                            <div className="w-3 h-3 rounded-full bg-green-500" />
+                            <div className="w-3 h-3 rounded-full bg-blue-400" />
                             <span className="text-sm text-white">Output Node</span>
                         </div>
                     </div>

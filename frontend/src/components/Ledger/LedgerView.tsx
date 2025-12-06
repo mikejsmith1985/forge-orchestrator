@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { OptimizationCard, type Suggestion } from './OptimizationCard';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
+/**
+ * Task 4.3: Ledger Metrics Fix
+ * 
+ * Updated to show cost and usage based on Primary Cost Unit (PROMPT or TOKEN),
+ * avoiding the misleading mixing of currencies in reporting.
+ */
+
 // Educational Comment: Defining the shape of our data ensures type safety throughout the component.
 interface LedgerEntry {
     id: string;
@@ -13,6 +20,10 @@ interface LedgerEntry {
     cost: number;
     latencyMs: number;
     status: 'success' | 'failed' | 'pending';
+    /** Primary cost unit for this entry: TOKEN or PROMPT */
+    costUnit: 'TOKEN' | 'PROMPT';
+    /** Number of prompts (for prompt-based billing) */
+    promptCount?: number;
 }
 
 // API response shape (snake_case from Go backend)
@@ -26,6 +37,10 @@ interface ApiLedgerEntry {
     total_cost_usd: number;
     latency_ms: number;
     status: string;
+    /** Primary cost unit from backend */
+    cost_unit?: string;
+    /** Number of prompts for prompt-based billing */
+    prompt_count?: number;
 }
 
 // Transform API response to frontend format
@@ -39,6 +54,8 @@ const mapLedgerEntry = (entry: ApiLedgerEntry): LedgerEntry => ({
     cost: entry.total_cost_usd,
     latencyMs: entry.latency_ms ?? 0,
     status: entry.status.toLowerCase() as 'success' | 'failed' | 'pending',
+    costUnit: (entry.cost_unit as 'TOKEN' | 'PROMPT') || 'TOKEN',
+    promptCount: entry.prompt_count,
 });
 
 // Toast notification component
@@ -197,6 +214,7 @@ export function LedgerView() {
                 )}
             </div>
 
+            {/* Task 4.3: Updated table with Primary Cost Unit support */}
             <div className="bg-gray-900/50 rounded-lg border border-white/10 overflow-hidden">
                 <table className="w-full text-left text-sm text-gray-400" data-testid="ledger-table">
                     <thead className="bg-white/5 text-gray-200 uppercase font-medium">
@@ -204,8 +222,7 @@ export function LedgerView() {
                             <th className="px-6 py-4">Timestamp</th>
                             <th className="px-6 py-4">Flow ID</th>
                             <th className="px-6 py-4">Model</th>
-                            <th className="px-6 py-4 text-right">Input Tokens</th>
-                            <th className="px-6 py-4 text-right">Output Tokens</th>
+                            <th className="px-6 py-4 text-right">Usage</th>
                             <th className="px-6 py-4 text-right">Latency</th>
                             <th className="px-6 py-4 text-right">Cost ($)</th>
                             <th className="px-6 py-4">Status</th>
@@ -219,12 +236,33 @@ export function LedgerView() {
                                 </td>
                                 <td className="px-6 py-4 font-mono text-xs">{entry.flowId}</td>
                                 <td className="px-6 py-4">
-                                    <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs border border-blue-500/20">
-                                        {entry.model}
-                                    </span>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs border border-blue-500/20 inline-block w-fit">
+                                            {entry.model}
+                                        </span>
+                                        {/* Cost Unit Badge */}
+                                        <span className={`text-xs ${
+                                            entry.costUnit === 'PROMPT' 
+                                                ? 'text-purple-400' 
+                                                : 'text-green-400'
+                                        }`}>
+                                            {entry.costUnit === 'PROMPT' ? '💬 Per-Prompt' : '🪙 Per-Token'}
+                                        </span>
+                                    </div>
                                 </td>
-                                <td className="px-6 py-4 text-right font-mono">{entry.inputTokens}</td>
-                                <td className="px-6 py-4 text-right font-mono">{entry.outputTokens}</td>
+                                {/* Task 4.3: Dynamic usage display based on cost unit */}
+                                <td className="px-6 py-4 text-right font-mono">
+                                    {entry.costUnit === 'PROMPT' ? (
+                                        <div className="flex flex-col">
+                                            <span className="text-purple-400">{entry.promptCount || 1} prompt(s)</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col text-xs">
+                                            <span>↓ {entry.inputTokens.toLocaleString()}</span>
+                                            <span>↑ {entry.outputTokens.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4 text-right font-mono">
                                     <span className={
                                         entry.latencyMs < 1000 ? 'text-green-400' :

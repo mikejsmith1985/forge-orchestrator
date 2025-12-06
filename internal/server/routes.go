@@ -8,6 +8,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", s.healthHandler)
 	mux.HandleFunc("/ws", s.websocketHandler)
+	// PTY WebSocket endpoint for integrated terminal
+	mux.HandleFunc("/ws/pty", s.handlePTYWebSocket)
 	// Execute endpoint - Contract 5 requirement.
 	// This calls the Executor interface to run shell commands.
 	mux.HandleFunc("POST /api/execute", s.handleExecute)
@@ -20,6 +22,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("POST /api/commands", s.handleCreateCommand)
 	mux.HandleFunc("DELETE /api/commands/{id}", s.handleDeleteCommand)
 	mux.HandleFunc("POST /api/commands/{id}/run", s.handleRunCommand)
+
+	// PTY Command Execution - Task 2.2: Inject commands directly into terminal
+	mux.HandleFunc("POST /api/command/execute", s.handlePTYCommandExecute)
 
 	// Optimizer Routes
 	mux.HandleFunc("GET /api/ledger/optimizations", s.handleGetOptimizations)
@@ -38,6 +43,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("DELETE /api/flows/{id}", s.handleDeleteFlow)
 	mux.HandleFunc("POST /api/flows/{id}/execute", s.handleExecuteFlow)
 	mux.HandleFunc("GET /api/flows/{id}/status", s.handleGetFlowStatus)
+
+	// Welcome/Onboarding Routes
+	mux.HandleFunc("GET /api/welcome", s.handleGetWelcome)
+	mux.HandleFunc("POST /api/welcome", s.handleMarkWelcomeShown)
 
 	return mux
 }

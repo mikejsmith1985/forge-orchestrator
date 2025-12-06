@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/mikejsmith1985/forge-orchestrator/internal/security"
@@ -40,7 +41,7 @@ func TestKeyringHandlers(t *testing.T) {
 		}
 	})
 
-	t.Run("GetAPIKeyStatus", func(t *testing.T) {
+	t.Run("GetAPIKeyStatus_ReturnsCorrectFormat", func(t *testing.T) {
 		// Ensure we have a key set
 		security.SetAPIKey("Anthropic", "sk-anthropic")
 
@@ -53,15 +54,93 @@ func TestKeyringHandlers(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var status map[string]bool
-		json.NewDecoder(w.Body).Decode(&status)
-
-		if !status["Anthropic"] {
-			t.Error("Expected Anthropic to be true")
+		// Frontend expects: {"keys": [{"provider": "anthropic", "isSet": true}]}
+		var response struct {
+			Keys []struct {
+				Provider string `json:"provider"`
+				IsSet    bool   `json:"isSet"`
+			} `json:"keys"`
 		}
-		if status["OpenAI"] {
-			// We didn't set OpenAI, so it should be false (or not present, but our logic sets it to false)
-			t.Error("Expected OpenAI to be false")
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response.Keys == nil {
+			t.Fatal("Expected 'keys' array in response, got nil")
+		}
+
+		// Find Anthropic in the keys array
+		foundAnthropic := false
+		for _, key := range response.Keys {
+			if key.Provider == "anthropic" {
+				foundAnthropic = true
+				if !key.IsSet {
+					t.Error("Expected Anthropic isSet to be true")
+				}
+			}
+		}
+		if !foundAnthropic {
+			t.Error("Expected to find 'anthropic' provider in keys array")
+		}
+	})
+
+	t.Run("GetAPIKeyStatus_ProviderNamesAreLowercase", func(t *testing.T) {
+		// Clear and set up fresh state
+		keyring.MockInit()
+		security.SetAPIKey("OpenAI", "sk-openai")
+
+		req := httptest.NewRequest("GET", "/api/keys/status", nil)
+		w := httptest.NewRecorder()
+
+		s.handleGetAPIKeyStatus(w, req)
+
+		var response struct {
+			Keys []struct {
+				Provider string `json:"provider"`
+				IsSet    bool   `json:"isSet"`
+			} `json:"keys"`
+		}
+		json.NewDecoder(w.Body).Decode(&response)
+
+		for _, key := range response.Keys {
+			// Provider names should be lowercase for frontend consistency
+			if key.Provider != strings.ToLower(key.Provider) {
+				t.Errorf("Provider name should be lowercase, got: %s", key.Provider)
+			}
+		}
+	})
+
+	t.Run("SetAPIKey_ReturnsSuccessMessage", func(t *testing.T) {
+		keyring.MockInit()
+
+		payload := map[string]string{
+			"provider": "anthropic",
+			"key":      "sk-ant-test-key",
+		}
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest("POST", "/api/keys", bytes.NewBuffer(body))
+		w := httptest.NewRecorder()
+
+		s.handleSetAPIKey(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		// Response should include success confirmation
+		var response struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response.Status != "ok" {
+			t.Errorf("Expected status 'ok', got '%s'", response.Status)
+		}
+		if response.Message == "" {
+			t.Error("Expected a success message in response")
 		}
 	})
 

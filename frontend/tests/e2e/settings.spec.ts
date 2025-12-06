@@ -41,6 +41,26 @@ test.describe('Key Management UI', () => {
         await expect(page.getByText('Securely manage your API keys')).toBeVisible();
     });
 
+    /**
+     * Task 4.1: Security Assurance Text Test
+     * Verifies the security assurance message is displayed prominently
+     */
+    test('displays security assurance message (Task 4.1)', async ({ page }) => {
+        await page.getByRole('button', { name: 'Settings' }).click();
+        await expect(page.locator('.animate-spin')).not.toBeVisible();
+
+        // Verify security assurance box is visible
+        const securityBox = page.locator('[data-testid="security-assurance"]');
+        await expect(securityBox).toBeVisible();
+
+        // Verify security message content
+        await expect(securityBox).toContainText('Secure Storage');
+        await expect(securityBox).toContainText('encrypted');
+        await expect(securityBox).toContainText('operating system');
+        await expect(securityBox).toContainText('keyring');
+        await expect(securityBox).toContainText('never');
+    });
+
     test('should display correct key status', async ({ page }) => {
         await page.getByRole('button', { name: 'Settings' }).click();
         await expect(page.locator('.animate-spin')).not.toBeVisible();
@@ -92,7 +112,11 @@ test.describe('Key Management UI', () => {
             const body = JSON.parse(route.request().postData() || '{}');
             if (body.provider === 'openai' && body.key === 'sk-test-123') {
                 isKeySet = true; // Update state for next GET
-                await route.fulfill({ status: 200 });
+                await route.fulfill({ 
+                    status: 200,
+                    contentType: 'application/json',
+                    json: { status: 'ok', message: 'API key saved successfully' }
+                });
             } else {
                 await route.fulfill({ status: 400 });
             }
@@ -100,6 +124,9 @@ test.describe('Key Management UI', () => {
 
         // Save
         await saveBtn.click();
+
+        // Wait for the status to be refetched (UI will fetch after save)
+        await page.waitForTimeout(500);
 
         // Verify input is cleared after save
         await expect(input).toBeEmpty();
