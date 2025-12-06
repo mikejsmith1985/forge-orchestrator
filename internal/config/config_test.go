@@ -99,6 +99,7 @@ func TestLoadAndSave(t *testing.T) {
 			Type:      ShellWSL,
 			WSLDistro: "Ubuntu-24.04",
 			WSLUser:   "testuser",
+			RootDir:   "C:\\Users\\test\\projects",
 		},
 		Update: UpdateConfig{
 			CheckOnStartup:       false,

@@ -42,6 +42,9 @@ type ShellConfig struct {
 
 	// WSLUser is the WSL username (only used when Type is "wsl")
 	WSLUser string `json:"wsl_user,omitempty"`
+
+	// RootDir is the starting directory for the terminal (empty = current working directory)
+	RootDir string `json:"root_dir,omitempty"`
 }
 
 // UpdateConfig contains update-related settings.

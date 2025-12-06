@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -75,8 +76,23 @@ func (pm *PTYManager) CreateSession(sessionID string, conn *websocket.Conn) (*PT
 			if cfg.Shell.WSLDistro != "" {
 				shellArgs = append(shellArgs, "-d", cfg.Shell.WSLDistro)
 			}
-			shellArgs = append(shellArgs, "--cd", "~", "-e", "bash", "-l")
-			log.Printf("Starting WSL terminal (distro: %s)", cfg.Shell.WSLDistro)
+			
+			// Set working directory
+			startDir := cfg.Shell.RootDir
+			if startDir == "" {
+				// Default to current working directory
+				cwd, err := os.Getwd()
+				if err != nil {
+					log.Printf("Failed to get current directory, using home: %v", err)
+					startDir = "~"
+				} else {
+					// Convert Windows path to WSL path format
+					startDir = convertWindowsPathToWSL(cwd)
+				}
+			}
+			
+			shellArgs = append(shellArgs, "--cd", startDir, "-e", "bash", "-l")
+			log.Printf("Starting WSL terminal (distro: %s, dir: %s)", cfg.Shell.WSLDistro, startDir)
 		case config.ShellPowerShell:
 			shell = "powershell.exe"
 			log.Printf("Starting PowerShell terminal")
@@ -312,4 +328,30 @@ func (s *PTYSession) Close() {
 		s.cmd.Process.Kill()
 		s.cmd.Wait()
 	}
+}
+
+// convertWindowsPathToWSL converts a Windows path to WSL path format
+// Example: C:\Users\mike\projects -> /mnt/c/Users/mike/projects
+func convertWindowsPathToWSL(windowsPath string) string {
+	// Handle empty path
+	if windowsPath == "" {
+		return "~"
+	}
+	
+	// If path is already in WSL format, return as-is
+	if len(windowsPath) > 0 && windowsPath[0] == '/' {
+		return windowsPath
+	}
+	
+	// Convert Windows path to WSL format
+	// Replace backslashes with forward slashes
+	path := strings.ReplaceAll(windowsPath, "\\", "/")
+	
+	// Handle drive letters (C: -> /mnt/c)
+	if len(path) >= 2 && path[1] == ':' {
+		driveLetter := strings.ToLower(string(path[0]))
+		path = "/mnt/" + driveLetter + path[2:]
+	}
+	
+	return path
 }

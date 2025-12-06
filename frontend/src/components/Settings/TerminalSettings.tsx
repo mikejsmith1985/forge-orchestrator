@@ -5,6 +5,7 @@ interface ShellConfig {
     type: 'bash' | 'cmd' | 'powershell' | 'wsl';
     wsl_distro?: string;
     wsl_user?: string;
+    root_dir?: string;
 }
 
 interface Config {
@@ -89,6 +90,14 @@ export const TerminalSettings: React.FC = () => {
         setConfig({
             ...config,
             shell: { ...config.shell, wsl_distro: distro },
+        });
+    };
+
+    const updateRootDir = (dir: string) => {
+        if (!config) return;
+        setConfig({
+            ...config,
+            shell: { ...config.shell, root_dir: dir },
         });
     };
 
@@ -228,20 +237,37 @@ export const TerminalSettings: React.FC = () => {
                                 <div className="text-sm text-slate-400 mb-2">Linux environment on Windows</div>
                                 
                                 {config.shell.type === 'wsl' && (
-                                    <div className="mt-3">
-                                        <label className="block text-sm text-slate-300 mb-1">
-                                            WSL Distribution (optional)
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g., Ubuntu-24.04"
-                                            value={config.shell.wsl_distro || ''}
-                                            onChange={(e) => updateWSLDistro(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                                        />
-                                        <p className="text-xs text-slate-500 mt-1">
-                                            Leave empty to use default. Run 'wsl --list' in CMD to see installed distributions.
-                                        </p>
+                                    <div className="mt-3 space-y-3">
+                                        <div>
+                                            <label className="block text-sm text-slate-300 mb-1">
+                                                WSL Distribution (optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g., Ubuntu-24.04"
+                                                value={config.shell.wsl_distro || ''}
+                                                onChange={(e) => updateWSLDistro(e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                Leave empty to use default. Run 'wsl --list' in CMD to see installed distributions.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-slate-300 mb-1">
+                                                Starting Directory (optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g., C:\Users\mike\projects\forge-orchestrator"
+                                                value={config.shell.root_dir || ''}
+                                                onChange={(e) => updateRootDir(e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                Leave empty to use current working directory. Use Windows path format - it will be converted automatically.
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -262,6 +288,7 @@ export const TerminalSettings: React.FC = () => {
                         <>
                             <li>• For WSL: Ensure WSL is installed and configured (<code className="text-blue-400">wsl --install</code>)</li>
                             <li>• For PowerShell: Make sure PowerShell is in your system PATH</li>
+                            <li>• WSL Starting Directory: Use Windows path format (e.g., C:\Users\mike\projects) - it will be auto-converted to WSL format</li>
                         </>
                     )}
                     <li>• Check browser console (F12) for detailed error messages</li>
