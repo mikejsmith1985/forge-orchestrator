@@ -4,15 +4,29 @@ Forge Orchestrator is a terminal-centric developer tool that puts a real PTY (ps
 
 ## Features
 
--   **🖥️ Integrated Terminal**: Full PTY terminal powered by xterm.js with WebSocket streaming. Type commands, see real output, and maintain persistent shell sessions.
--   **🤖 Prompt Watcher**: Automatically responds to confirmation prompts (y/n) when enabled, perfect for unattended automation.
--   **🧠 Architect**: Leverage LLMs to brainstorm and plan tasks with live token estimation.
--   **📊 Ledger**: Track token usage and costs across different LLM providers with Primary Cost Unit support (TOKEN or PROMPT billing).
--   **⚡ Commands**: Save and execute frequently-used shell commands with one click.
+-   **🖥️ Integrated Terminal**: Full PTY terminal powered by xterm.js with WebSocket streaming
+    - Real shell access with persistent sessions
+    - **Auto-reconnection** with exponential backoff (up to 5 attempts)
+    - **Connection overlay** with visual feedback during reconnection
+    - **Scroll-to-bottom** button for easy navigation
+    - Cross-platform support: Bash, CMD, PowerShell, and WSL
+-   **🪟 WSL Support**: First-class Windows Subsystem for Linux integration
+    - **Configurable root directory** - Start terminal in your project folder
+    - **Automatic path conversion** - Windows paths (C:\) → WSL format (/mnt/c)
+    - **Smart defaults** - Uses current working directory when not specified
+    - Multi-distribution support with distro selection
+-   **🤖 Advanced Prompt Watcher**: Intelligent CLI automation with pattern detection
+    - Auto-responds to y/n confirmation prompts
+    - Detects menu-style selections (Copilot CLI, npm, etc.)
+    - Confidence-based responses (high/medium/low)
+    - ANSI escape code handling for accurate detection
+-   **🧠 Architect**: Leverage LLMs to brainstorm and plan tasks with live token estimation
+-   **📊 Ledger**: Track token usage and costs across different LLM providers with Primary Cost Unit support (TOKEN or PROMPT billing)
+-   **⚡ Commands**: Save and execute frequently-used shell commands with one click
 -   **🔀 Flows**: Visually design automation workflows with two distinct node types:
     - **Shell Command Nodes** (Zero-Token): Execute local scripts without consuming LLM budget
     - **LLM Prompt Nodes** (Premium): Run AI-powered tasks with confirmation gating
--   **🔐 Secure Keyring**: API keys are encrypted and stored in your OS native keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service).
+-   **🔐 Secure Keyring**: API keys are encrypted and stored in your OS native keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 
 ## Quick Start
 
@@ -54,11 +68,34 @@ The application opens with the **Terminal** as the default view, establishing th
 
 ### Terminal View (Default)
 
-The Terminal is your primary workspace:
+The Terminal is your primary workspace with advanced features:
+
+**Connection & Reliability:**
 - Full shell access with PTY streaming
-- Connection status indicator (green = connected)
+- Connection status indicator (green = connected, red = disconnected)
+- **Auto-reconnection**: Automatically reconnects with exponential backoff (up to 5 attempts)
+- **Connection overlay**: Visual feedback showing reconnection progress
+- **Manual reconnect** button if automatic reconnection fails
+
+**Prompt Automation:**
 - **Prompt Watcher** toggle to auto-respond to y/n confirmations
-- Commands typed here execute in your actual shell
+- Detects menu-style prompts (Copilot CLI, npm interactive, etc.)
+- Smart pattern matching with confidence levels
+- ANSI escape code handling for accurate detection
+
+**Navigation:**
+- **Scroll-to-bottom** button appears when scrolled up
+- Search functionality (SearchAddon integration)
+- Persistent command history
+
+**Multi-Platform Support:**
+- Bash (Unix/Linux) - Default on non-Windows systems
+- CMD (Windows) - Windows command prompt
+- PowerShell (Windows) - Modern Windows shell
+- WSL (Windows) - Linux environment on Windows
+  - **Configurable root directory** - Start in your project folder
+  - **Automatic path conversion** - C:\path → /mnt/c/path
+  - Multi-distribution support
 
 ### Flow Editor
 
@@ -121,6 +158,35 @@ Forge Orchestrator tracks your AI spending with precision:
 For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
 ## Configuration
+
+### Terminal Configuration
+
+Configure your preferred shell and starting directory via Settings → Terminal tab:
+
+**Shell Types:**
+- **Bash** (Unix/Linux): Standard Unix shell
+- **CMD** (Windows): Windows command prompt
+- **PowerShell** (Windows): Modern Windows shell with scripting
+- **WSL** (Windows): Windows Subsystem for Linux
+  - Optional distribution name (e.g., "Ubuntu-24.04")
+  - Optional starting directory in Windows path format
+  - Automatic path conversion to WSL format
+
+**WSL Root Directory Configuration:**
+```json
+{
+  "shell": {
+    "type": "wsl",
+    "wsl_distro": "Ubuntu-24.04",
+    "root_dir": "C:\\Users\\mike\\projects\\forge-orchestrator"
+  }
+}
+```
+
+The application automatically converts Windows paths to WSL format:
+- `C:\Users\mike\projects` → `/mnt/c/Users/mike/projects`
+- `D:\Work` → `/mnt/d/Work`
+- Empty = Uses current working directory
 
 ### Environment Variables
 

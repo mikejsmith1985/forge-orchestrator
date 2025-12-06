@@ -1,6 +1,6 @@
 # Forge Orchestrator - User Guide
 
-**Version:** 1.1.1  
+**Version:** 1.2.2  
 **Last Updated:** December 2024
 
 Welcome to Forge Orchestrator! This guide will walk you through every feature in plain, easy-to-understand language.
@@ -11,14 +11,15 @@ Welcome to Forge Orchestrator! This guide will walk you through every feature in
 
 1. [Getting Started](#getting-started)
 2. [Terminal (Home View)](#terminal-home-view)
-3. [Navigation (Sidebar)](#navigation-sidebar)
-4. [Architect View](#architect-view)
-5. [Dashboard / Ledger](#dashboard--ledger)
-6. [Commands](#commands)
-7. [Flows](#flows)
-8. [Settings (API Keys)](#settings-api-keys)
-9. [Sending Feedback](#sending-feedback)
-10. [Updates](#updates)
+3. [Terminal Settings](#terminal-settings)
+4. [Navigation (Sidebar)](#navigation-sidebar)
+5. [Architect View](#architect-view)
+6. [Dashboard / Ledger](#dashboard--ledger)
+7. [Commands](#commands)
+8. [Flows](#flows)
+9. [Settings (API Keys)](#settings-api-keys)
+10. [Sending Feedback](#sending-feedback)
+11. [Updates](#updates)
 
 ---
 
@@ -55,6 +56,7 @@ The Terminal is Forge Orchestrator's **main feature**. It's a real shell running
 | "Terminal" Label | Shows you're in the terminal view |
 | Green/Red Dot | Connection status (green = connected) |
 | **Prompt Watcher** Toggle | Auto-respond to y/n prompts |
+| **Scroll Button** | Jump to bottom (appears when scrolled up) |
 | Terminal Area | Where you type and see output |
 
 ### How to Use It
@@ -71,24 +73,194 @@ The Terminal is Forge Orchestrator's **main feature**. It's a real shell running
 3. **Connection indicator** - The small dot shows:
    - 🟢 Green = Connected and ready
    - 🔴 Red = Disconnected (will auto-reconnect)
+   - 🟡 Yellow = Reconnecting...
+
+### Auto-Reconnection
+
+If the connection drops, the terminal **automatically reconnects**:
+
+- **Exponential backoff**: Waits 1s, 2s, 4s, 8s, 16s between attempts
+- **Up to 5 attempts**: Tries to reconnect without user intervention
+- **Visual overlay**: Shows reconnection progress with attempt counter
+- **Manual reconnect**: If auto-reconnect fails, click the "Reconnect Terminal" button
+
+**When you see the reconnection overlay:**
+```
+Disconnected
+Reconnecting... (Attempt 3/5)
+```
+
+Just wait - the terminal is automatically trying to reconnect. If it fails after 5 attempts, you'll see a manual reconnect button.
 
 ### Prompt Watcher
 
 The **Prompt Watcher** button in the top-right corner enables automatic responses to confirmation prompts:
 
+#### How It Works
+
 - **Off (default)**: You manually respond to "Continue? [y/n]" prompts
-- **On (blue)**: Automatically sends "y" when it detects prompts like:
-  - `[y/n]`
-  - `[Y/n]`
-  - `Continue?`
-  - `Are you sure?`
+- **On (blue eye icon)**: Automatically sends appropriate responses when it detects:
+  - **Y/N prompts**: `[y/n]`, `[Y/n]`, `Continue?`, `Are you sure?`
+  - **Menu selections**: GitHub Copilot CLI, npm interactive, CLI wizards
+  - **Confidence-based**: Only auto-responds to high and medium confidence detections
+
+#### Intelligence
+
+The Prompt Watcher uses **advanced pattern detection**:
+
+- **ANSI escape code handling**: Strips terminal colors/formatting for accurate detection
+- **Confidence levels**:
+  - **High**: Menu with clear context indicators
+  - **Medium**: Question with yes/no format
+  - **Low**: Ambiguous patterns (skipped for safety)
+- **Context-aware**: Looks for keywords like "Confirm", "arrow keys", "Enter"
+
+#### What It Responds To
+
+**Menu-style prompts** (sends Enter):
+```
+❯ Yes
+  No
+  Cancel
+
+Use arrow keys or Enter to select
+```
+
+**Y/N prompts** (sends 'y' + Enter):
+```
+Do you want to continue? [Y/n]
+Are you sure? (y/n)
+```
 
 **Use cases:**
 - Unattended installations (`npm install`, `apt-get`)
 - Batch operations that need confirmation
 - Automated testing scripts
+- CI/CD workflows
+- GitHub Copilot CLI interactions
 
 ⚠️ **Use with caution** - This will auto-confirm potentially destructive operations!
+
+### Navigation Features
+
+#### Scroll-to-Bottom Button
+
+When you scroll up to review output, a **floating blue button** appears in the bottom-right:
+
+- Click it to instantly jump to the latest output
+- Auto-hides when you're already at the bottom
+- Keyboard shortcut: `Ctrl+End` (or `Cmd+End` on Mac)
+
+#### Search (Coming Soon)
+
+The terminal has search capabilities built-in (SearchAddon), ready for future keyboard shortcut integration (Ctrl+F).
+
+---
+
+## Terminal Settings
+
+### What It Does
+
+Configure your preferred shell type and starting directory. Essential for Windows users who want to use WSL, PowerShell, or CMD.
+
+### How to Access
+
+1. Click **Settings** in the sidebar
+2. Click the **Terminal** tab at the top
+
+### Shell Types
+
+Choose your shell based on your platform:
+
+| Shell Type | Platform | Description |
+|------------|----------|-------------|
+| **Bash** | Unix/Linux/Mac | Standard Unix shell (default on non-Windows) |
+| **CMD** | Windows | Windows command prompt |
+| **PowerShell** | Windows | Modern Windows shell with scripting |
+| **WSL** | Windows | Windows Subsystem for Linux |
+
+### WSL Configuration (Windows Users)
+
+If you select **WSL**, you get additional options:
+
+#### WSL Distribution (Optional)
+
+Specify which Linux distribution to use:
+
+1. Leave empty to use your default WSL distribution
+2. Or enter a specific distro name (e.g., "Ubuntu-24.04")
+
+**To find your installed distributions:**
+```cmd
+wsl --list
+```
+
+Example output:
+```
+Windows Subsystem for Linux Distributions:
+Ubuntu-24.04 (Default)
+Debian
+```
+
+#### Starting Directory (Optional)
+
+**This is the most important setting for WSL users!**
+
+Specify where the terminal should start. This solves the common issue of WSL starting in the wrong directory.
+
+**How it works:**
+
+1. **Enter a Windows path** in the input field:
+   ```
+   C:\Users\mike\projects\forge-orchestrator
+   ```
+
+2. **Automatic conversion** to WSL format:
+   ```
+   /mnt/c/Users/mike/projects/forge-orchestrator
+   ```
+
+3. **Terminal starts there** every time you open it!
+
+**Path Conversion Examples:**
+
+| Windows Path | WSL Path |
+|--------------|----------|
+| `C:\Users\mike\projects` | `/mnt/c/Users/mike/projects` |
+| `D:\Work\myproject` | `/mnt/d/Work/myproject` |
+| `C:/Users/mike/code` | `/mnt/c/Users/mike/code` (forward slashes work too) |
+| (empty) | Uses current working directory of the backend |
+
+**Tips:**
+- Use **full paths** (not relative paths)
+- Both `\` and `/` work in Windows paths
+- Verification: After saving, open Terminal and type `pwd` to see your current directory
+
+### Saving Your Configuration
+
+1. Select your shell type
+2. (WSL only) Enter distribution and/or starting directory
+3. Click **"Save Configuration"**
+4. See the green success message
+5. **Reload the terminal** to apply changes
+
+### Troubleshooting
+
+**Terminal still starts in wrong directory:**
+- Make sure you clicked "Save Configuration"
+- Try using forward slashes: `C:/Users/mike/projects`
+- Check that the path exists in Windows
+- Reload the terminal tab after saving
+
+**WSL says "distribution not found":**
+- Run `wsl --list` in Windows CMD to see available distros
+- Copy the exact name (case-sensitive)
+- Leave empty to use default distribution
+
+**WSL path conversion not working:**
+- The app automatically converts paths
+- Don't manually enter `/mnt/c/...` - use Windows format
+- Example: Enter `C:\Users\mike` not `/mnt/c/Users/mike`
 
 ---
 
@@ -426,7 +598,26 @@ Your feedback submission includes:
 
 - The backend may not be running
 - Check that `forge-orchestrator` is running in your terminal
-- Refresh the page to reconnect
+- **Wait for auto-reconnect**: The terminal tries to reconnect automatically (up to 5 attempts)
+- **Manual reconnect**: If auto-reconnect fails, click the "Reconnect Terminal" button in the overlay
+- Refresh the page as a last resort
+
+### Terminal Connection Keeps Dropping
+
+- Check your internet/network connection
+- Backend server may be overloaded
+- Look for error messages in the connection overlay
+- Check browser console (F12) for WebSocket errors
+
+### WSL Terminal Not Working
+
+**See the [Terminal Settings](#terminal-settings) section for complete WSL setup instructions.**
+
+Common issues:
+- **Starting in wrong directory**: Configure "Starting Directory" in Terminal Settings
+- **Distribution not found**: Run `wsl --list` and use exact name
+- **Path not found**: Verify the Windows path exists before entering it
+- **Still not working**: Try using forward slashes in path: `C:/Users/mike/projects`
 
 ### API Key Won't Save
 
