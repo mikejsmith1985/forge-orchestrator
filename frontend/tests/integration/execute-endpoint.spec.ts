@@ -12,6 +12,21 @@ import { test, expect } from '@playwright/test';
 test.describe('Execute Endpoint Integration (Contract 5)', () => {
     test.setTimeout(30000);
 
+    // Mock the welcome endpoint to prevent the modal from appearing
+    test.beforeEach(async ({ page }) => {
+        await page.route('/api/welcome', async (route) => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ shown: true, currentVersion: '1.1.0' }),
+                });
+            } else {
+                await route.fulfill({ status: 200, body: '{}' });
+            }
+        });
+    });
+
     test('full stack validation - UI calls /api/execute and receives response', async ({ page }) => {
         // Navigate to the app
         await page.goto('/');

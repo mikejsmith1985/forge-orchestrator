@@ -9,6 +9,21 @@ import { test, expect } from '@playwright/test';
 test.describe('Command Flow Integration', () => {
     test.setTimeout(30000);
 
+    // Mock the welcome endpoint to prevent the modal from appearing
+    test.beforeEach(async ({ page }) => {
+        await page.route('/api/welcome', async (route) => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ shown: true, currentVersion: '1.1.0' }),
+                });
+            } else {
+                await route.fulfill({ status: 200, body: '{}' });
+            }
+        });
+    });
+
     test('complete command lifecycle - create, view, delete', async ({ page }) => {
         // 1. Navigate directly to Command Deck via URL (more reliable than clicking nav)
         await page.goto('/commands');

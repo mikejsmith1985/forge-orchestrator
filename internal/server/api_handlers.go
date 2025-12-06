@@ -35,7 +35,7 @@ type ExecuteResponse struct {
 	Stderr string `json:"stderr,omitempty"`
 
 	// ExitCode is the numeric exit code from the command.
-	ExitCode int `json:"exitCode,omitempty"`
+	ExitCode int `json:"exitCode"`
 
 	// Success indicates whether the execution was successful.
 	Success bool `json:"success"`

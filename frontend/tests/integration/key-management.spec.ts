@@ -10,6 +10,21 @@ import { test, expect } from '@playwright/test';
 test.describe('Key Management Integration', () => {
     test.setTimeout(30000);
 
+    // Mock the welcome endpoint to prevent the modal from appearing
+    test.beforeEach(async ({ page }) => {
+        await page.route('/api/welcome', async (route) => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ shown: true, currentVersion: '1.1.0' }),
+                });
+            } else {
+                await route.fulfill({ status: 200, body: '{}' });
+            }
+        });
+    });
+
     test('settings page displays key status', async ({ page }) => {
         // 1. Navigate directly to Settings page via URL
         await page.goto('/settings');
@@ -41,6 +56,7 @@ test.describe('Key Management Integration', () => {
     test('shows success toast after saving API key', async ({ page }) => {
         // 1. Navigate to Settings page
         await page.goto('/settings');
+        
         await expect(page.getByTestId('settings-view')).toBeVisible();
         
         // 2. Find the Anthropic provider card and its input
@@ -75,6 +91,7 @@ test.describe('Key Management Integration', () => {
         
         // 1. Navigate to Settings page
         await page.goto('/settings');
+        
         await expect(page.getByTestId('settings-view')).toBeVisible();
         
         // 2. Find the OpenAI provider card
