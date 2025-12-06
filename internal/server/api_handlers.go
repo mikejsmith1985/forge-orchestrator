@@ -4,8 +4,10 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
+	"github.com/mikejsmith1985/forge-orchestrator/internal/config"
 	"github.com/mikejsmith1985/forge-orchestrator/internal/execution"
 )
 
@@ -199,5 +201,52 @@ func (s *Server) handlePTYCommandExecute(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(PTYCommandResponse{
 		Success: true,
 		Message: "Command injected successfully",
+	})
+}
+
+// handleGetConfig returns the current application configuration.
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	cfg, err := config.Get()
+	if err != nil {
+		log.Printf("Failed to get config: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to load configuration",
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(cfg)
+}
+
+// handleSaveConfig saves the application configuration.
+func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var cfg config.Config
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Invalid request body: " + err.Error(),
+		})
+		return
+	}
+
+	if err := config.Save(&cfg); err != nil {
+		log.Printf("Failed to save config: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to save configuration",
+		})
+		return
+	}
+
+	log.Printf("Configuration saved successfully (shell: %s)", cfg.Shell.Type)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Configuration saved successfully",
 	})
 }

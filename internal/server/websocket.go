@@ -2,11 +2,15 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"runtime"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/mikejsmith1985/forge-orchestrator/internal/config"
 )
 
 var upgrader = websocket.Upgrader{
@@ -63,20 +67,47 @@ func (s *Server) handlePTYWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Generate a unique session ID
 	sessionID := uuid.New().String()
 
+	log.Printf("Creating PTY session %s...", sessionID)
+
 	// Create the PTY session
 	session, err := s.ptyManager.CreateSession(sessionID, conn)
 	if err != nil {
-		log.Printf("Failed to create PTY session: %v", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("Error: Failed to create terminal session\r\n"))
+		log.Printf("Failed to create PTY session %s: %v", sessionID, err)
+		
+		// Send detailed error message to client
+		errorMsg := fmt.Sprintf("\r\n\x1b[31m✗ Failed to create terminal session\x1b[0m\r\n\r\n")
+		errorMsg += fmt.Sprintf("Error: %v\r\n\r\n", err)
+		errorMsg += "\x1b[33mTroubleshooting:\x1b[0m\r\n"
+		
+		if runtime.GOOS == "windows" {
+			errorMsg += "• Check that PowerShell, CMD, or WSL is installed\r\n"
+			errorMsg += "• For WSL: Verify WSL is installed with 'wsl --list'\r\n"
+			errorMsg += "• Try changing the shell in Settings\r\n"
+		} else {
+			errorMsg += "• Check that bash or your default shell is installed\r\n"
+			errorMsg += "• Verify SHELL environment variable is set correctly\r\n"
+		}
+		errorMsg += "\r\nPress F5 to reload or check the browser console for details.\r\n"
+		
+		conn.WriteMessage(websocket.TextMessage, []byte(errorMsg))
+		time.Sleep(100 * time.Millisecond) // Give time for message to send
 		conn.Close()
 		return
 	}
 
-	log.Printf("PTY session created: %s", sessionID)
+	log.Printf("PTY session created successfully: %s", sessionID)
+
+	// Send welcome message with shell info
+	cfg, _ := config.Get()
+	if cfg == nil {
+		cfg = config.DefaultConfig()
+	}
+	welcomeMsg := fmt.Sprintf("\x1b[32m✓ Connected to terminal\x1b[0m (Shell: %s)\r\n", cfg.Shell.Type)
+	conn.WriteMessage(websocket.TextMessage, []byte(welcomeMsg))
 
 	// Store session ID in connection for later reference
 	conn.SetCloseHandler(func(code int, text string) error {
-		log.Printf("PTY WebSocket closed: %s (code: %d)", sessionID, code)
+		log.Printf("PTY WebSocket closed: %s (code: %d, reason: %s)", sessionID, code, text)
 		s.ptyManager.CloseSession(sessionID)
 		return nil
 	})
@@ -101,7 +132,9 @@ func (s *Server) handlePTYWebSocket(w http.ResponseWriter, r *http.Request) {
 				case "input":
 					session.Write([]byte(msg.Data))
 				case "resize":
-					session.Resize(msg.Rows, msg.Cols)
+					if err := session.Resize(msg.Rows, msg.Cols); err != nil {
+						log.Printf("Resize error: %v", err)
+					}
 				case "prompt_watcher":
 					session.SetPromptWatcher(msg.Data == "enable")
 				default:

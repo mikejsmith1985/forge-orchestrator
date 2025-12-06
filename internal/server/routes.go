@@ -49,6 +49,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /api/welcome", s.handleGetWelcome)
 	mux.HandleFunc("POST /api/welcome", s.handleMarkWelcomeShown)
 
+	// Configuration Routes
+	mux.HandleFunc("GET /api/config", s.handleGetConfig)
+	mux.HandleFunc("POST /api/config", s.handleSaveConfig)
+
 	return mux
 }
 

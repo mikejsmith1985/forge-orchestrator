@@ -5,7 +5,7 @@ import { MainContent } from './components/Layout/MainContent';
 import { ArchitectView } from './components/Architect/ArchitectView';
 import { LedgerView } from './components/Ledger/LedgerView';
 import { CommandDeck } from './components/Commands/CommandDeck';
-import { KeyManagement } from './components/Settings/KeyManagement';
+import { Settings } from './components/Settings';
 import { Terminal } from './components/Terminal';
 import FlowList from './components/Flows/FlowList';
 import FlowEditor from './components/Flows/FlowEditor';
@@ -144,7 +144,7 @@ function App() {
             <Route path="/flows" element={<FlowList />} />
             <Route path="/flows/new" element={<FlowEditor />} />
             <Route path="/flows/:id" element={<FlowEditor />} />
-            <Route path="/settings" element={<KeyManagement />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </MainContent>
 

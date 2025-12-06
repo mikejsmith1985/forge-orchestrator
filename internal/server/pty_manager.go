@@ -3,21 +3,24 @@
 package server
 
 import (
+	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 
-	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
+	"github.com/mikejsmith1985/forge-orchestrator/internal/config"
 )
 
 // PTYSession represents an active PTY session connected to a WebSocket client.
 // It manages the bidirectional communication between the terminal and the browser.
 type PTYSession struct {
 	// The pseudo-terminal file descriptor
-	ptmx *os.File
-	// The underlying shell command
+	ptmx io.ReadWriteCloser
+	// The underlying shell command (nil on Windows)
 	cmd *exec.Cmd
 	// WebSocket connection to the browser
 	conn *websocket.Conn
@@ -25,6 +28,8 @@ type PTYSession struct {
 	writeMu sync.Mutex
 	// Channel to signal session closure
 	done chan struct{}
+	// closeOnce ensures done is only closed once
+	closeOnce sync.Once
 	// Flag indicating if prompt watcher is enabled
 	promptWatcherEnabled bool
 	// Mutex for prompt watcher state
@@ -48,16 +53,73 @@ func NewPTYManager() *PTYManager {
 }
 
 // CreateSession creates a new PTY session for a WebSocket client.
-// It starts a bash shell and connects it to the WebSocket.
+// It reads shell configuration and starts the appropriate shell with proper error handling.
 func (pm *PTYManager) CreateSession(sessionID string, conn *websocket.Conn) (*PTYSession, error) {
-	// Start a bash shell
-	cmd := exec.Command("bash")
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
-
-	// Create the pseudo-terminal
-	ptmx, err := pty.Start(cmd)
+	// Load configuration
+	cfg, err := config.Get()
 	if err != nil {
-		return nil, err
+		log.Printf("Failed to load config, using defaults: %v", err)
+		cfg = config.DefaultConfig()
+	}
+
+	// Determine shell based on configuration and platform
+	shell := ""
+	shellArgs := []string{}
+	var cmd *exec.Cmd
+
+	if runtime.GOOS == "windows" {
+		// Windows shell selection
+		switch cfg.Shell.Type {
+		case config.ShellWSL:
+			shell = "wsl.exe"
+			if cfg.Shell.WSLDistro != "" {
+				shellArgs = append(shellArgs, "-d", cfg.Shell.WSLDistro)
+			}
+			shellArgs = append(shellArgs, "--cd", "~", "-e", "bash", "-l")
+			log.Printf("Starting WSL terminal (distro: %s)", cfg.Shell.WSLDistro)
+		case config.ShellPowerShell:
+			shell = "powershell.exe"
+			log.Printf("Starting PowerShell terminal")
+		case config.ShellCmd:
+			shell = "cmd.exe"
+			log.Printf("Starting CMD terminal")
+		default:
+			// Default to CMD on Windows
+			shell = "cmd.exe"
+			log.Printf("Starting CMD terminal (default)")
+		}
+	} else {
+		// Unix/Linux shell selection
+		shell = os.Getenv("SHELL")
+		if shell == "" {
+			shell = "/bin/bash"
+		}
+		shellArgs = []string{"-l"}
+		log.Printf("Starting Unix shell: %s", shell)
+	}
+
+	// Create the command (only used on Unix)
+	if runtime.GOOS != "windows" {
+		cmd = exec.Command(shell, shellArgs...)
+		cmd.Env = append(os.Environ(),
+			"TERM=xterm-256color",
+			"COLORTERM=truecolor",
+		)
+	}
+
+	// Start PTY (platform specific)
+	var ptmx io.ReadWriteCloser
+	if runtime.GOOS != "windows" {
+		// Unix: use standard PTY
+		ptmx, err = startPTY(cmd)
+	} else {
+		// Windows: use ConPTY with shell string
+		ptmx, err = startPTYWindows(shell, shellArgs)
+	}
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to start %s terminal: %v", shell, err)
+		log.Printf("PTY creation error: %s", errMsg)
+		return nil, fmt.Errorf("%s", errMsg)
 	}
 
 	session := &PTYSession{
@@ -71,8 +133,21 @@ func (pm *PTYManager) CreateSession(sessionID string, conn *websocket.Conn) (*PT
 	pm.sessions[sessionID] = session
 	pm.mu.Unlock()
 
+	log.Printf("PTY session %s created successfully with shell: %s", sessionID, shell)
+
 	// Start goroutine to read from PTY and send to WebSocket
 	go session.readPTYLoop()
+
+	// Monitor process exit (only on Unix where we have cmd)
+	if cmd != nil {
+		go func() {
+			_ = cmd.Wait()
+			log.Printf("PTY session %s: shell process exited", sessionID)
+			session.closeOnce.Do(func() {
+				close(session.done)
+			})
+		}()
+	}
 
 	return session, nil
 }
@@ -220,15 +295,14 @@ func (s *PTYSession) SetPromptWatcher(enabled bool) {
 
 // Resize changes the PTY window size.
 func (s *PTYSession) Resize(rows, cols uint16) error {
-	return pty.Setsize(s.ptmx, &pty.Winsize{
-		Rows: rows,
-		Cols: cols,
-	})
+	return resizePTY(s.ptmx, cols, rows)
 }
 
 // Close terminates the PTY session and cleans up resources.
 func (s *PTYSession) Close() {
-	close(s.done)
+	s.closeOnce.Do(func() {
+		close(s.done)
+	})
 
 	if s.ptmx != nil {
 		s.ptmx.Close()
