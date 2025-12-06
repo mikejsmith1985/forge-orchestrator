@@ -54,6 +54,19 @@ test.describe('Key Management Integration', () => {
     });
 
     test('shows success toast after saving API key', async ({ page }) => {
+        // Mock the /api/keys endpoint to return success
+        await page.route('/api/keys', async (route) => {
+            if (route.request().method() === 'POST') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ success: true, message: 'API key saved successfully' }),
+                });
+            } else {
+                await route.continue();
+            }
+        });
+        
         // 1. Navigate to Settings page
         await page.goto('/settings');
         
