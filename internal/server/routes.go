@@ -16,6 +16,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("POST /api/ledger", s.handleCreateLedgerEntry)
 	mux.HandleFunc("GET /api/ledger", s.handleGetLedger)
 	mux.HandleFunc("POST /api/tokens/estimate", s.handleEstimateTokens)
+	mux.HandleFunc("GET /api/budget", s.handleGetBudget)
 
 	// Command Cards Routes
 	mux.HandleFunc("GET /api/commands", s.handleGetCommands)

@@ -2,7 +2,20 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Forge Architect View', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        // Mock budget API for consistent test behavior
+        await page.route('/api/budget*', async route => {
+            await route.fulfill({
+                json: {
+                    totalBudget: 10.00,
+                    spentToday: 0,
+                    remainingBudget: 10.00,
+                    remainingPrompts: 1000,
+                    costUnit: 'TOKEN',
+                    model: 'gpt-4o'
+                }
+            });
+        });
+        await page.goto('/architect');
     });
 
     test('should display architect input and token meter', async ({ page }) => {
@@ -15,7 +28,7 @@ test.describe('Forge Architect View', () => {
 
     test('should update token meter width when typing', async ({ page }) => {
         const input = page.getByTestId('architect-input');
-        const meterBar = page.locator('[data-testid="token-meter"] .bg-gray-800 > div');
+        const meterBar = page.locator('[data-testid="token-meter-bar"]');
 
         // Initial state should be 0%
         await expect(meterBar).toHaveCSS('width', '0px');
@@ -32,7 +45,7 @@ test.describe('Forge Architect View', () => {
 
     test('should change color to red when pasting large text', async ({ page }) => {
         const input = page.getByTestId('architect-input');
-        const meterBar = page.locator('[data-testid="token-meter"] .bg-gray-800 > div');
+        const meterBar = page.locator('[data-testid="token-meter-bar"]');
 
         // Initial color should be green
         await expect(meterBar).toHaveClass(/bg-green-500/);
@@ -51,8 +64,21 @@ test.describe('Forge Architect View', () => {
 // Mobile Responsiveness Tests (Contract #42)
 test.describe('Architect View - Mobile (360x640)', () => {
     test.beforeEach(async ({ page }) => {
+        // Mock budget API for consistent test behavior
+        await page.route('/api/budget*', async route => {
+            await route.fulfill({
+                json: {
+                    totalBudget: 10.00,
+                    spentToday: 0,
+                    remainingBudget: 10.00,
+                    remainingPrompts: 1000,
+                    costUnit: 'TOKEN',
+                    model: 'gpt-4o'
+                }
+            });
+        });
         await page.setViewportSize({ width: 360, height: 640 });
-        await page.goto('/');
+        await page.goto('/architect');
     });
 
     test('should display architect input on mobile', async ({ page }) => {
@@ -78,7 +104,7 @@ test.describe('Architect View - Mobile (360x640)', () => {
 
     test('should update meter when typing on mobile', async ({ page }) => {
         const input = page.getByTestId('architect-input');
-        const meterBar = page.locator('[data-testid="token-meter"] .bg-gray-800 > div');
+        const meterBar = page.locator('[data-testid="token-meter-bar"]');
         
         // Click to focus (use click instead of tap for browser compatibility)
         await input.click();
@@ -115,8 +141,21 @@ test.describe('Architect View - Mobile (360x640)', () => {
 
 test.describe('Architect View - Large Mobile (414x896 iPhone 11 Pro Max)', () => {
     test.beforeEach(async ({ page }) => {
+        // Mock budget API for consistent test behavior
+        await page.route('/api/budget*', async route => {
+            await route.fulfill({
+                json: {
+                    totalBudget: 10.00,
+                    spentToday: 0,
+                    remainingBudget: 10.00,
+                    remainingPrompts: 1000,
+                    costUnit: 'TOKEN',
+                    model: 'gpt-4o'
+                }
+            });
+        });
         await page.setViewportSize({ width: 414, height: 896 });
-        await page.goto('/');
+        await page.goto('/architect');
     });
 
     test('should work on iPhone 11 Pro Max size', async ({ page }) => {
@@ -135,7 +174,7 @@ test.describe('Architect View - Large Mobile (414x896 iPhone 11 Pro Max)', () =>
         // tiktoken counts ~8 chars per token for repeated 'a'
         await input.fill('a'.repeat(70000));
         
-        const meterBar = page.locator('[data-testid="token-meter"] .bg-gray-800 > div');
+        const meterBar = page.locator('[data-testid="token-meter-bar"]');
         // Wait for debounced API call
         await expect(meterBar).toHaveClass(/bg-red-500/, { timeout: 10000 });
     });

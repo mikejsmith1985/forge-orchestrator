@@ -163,3 +163,58 @@ func (s *Server) handleGetLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+// BudgetResponse represents the current budget status for the UI.
+// Task 4.2: This provides the Dynamic Budget Meter data.
+type BudgetResponse struct {
+	TotalBudget      float64 `json:"totalBudget"`
+	SpentToday       float64 `json:"spentToday"`
+	RemainingBudget  float64 `json:"remainingBudget"`
+	RemainingPrompts int     `json:"remainingPrompts"`
+	CostUnit         string  `json:"costUnit"`
+	Model            string  `json:"model"`
+}
+
+// handleGetBudget returns the current budget status for the selected model.
+// Task 4.2: Provides data for the Dynamic Budget Meter UI.
+func (s *Server) handleGetBudget(w http.ResponseWriter, r *http.Request) {
+	// Get optional model parameter (defaults to current active model)
+	model := r.URL.Query().Get("model")
+	if model == "" {
+		model = "gpt-4o"
+	}
+
+	// Calculate spent today from ledger
+	var spentToday float64
+	query := `SELECT COALESCE(SUM(total_cost_usd), 0) FROM token_ledger WHERE date(timestamp) = date('now')`
+	if err := s.db.QueryRow(query).Scan(&spentToday); err != nil {
+		spentToday = 0
+	}
+
+	// Default budget configuration (could be made configurable)
+	totalBudget := 10.00 // $10 daily budget
+	remainingBudget := totalBudget - spentToday
+	if remainingBudget < 0 {
+		remainingBudget = 0
+	}
+
+	// Calculate remaining prompts based on average cost per prompt
+	// Using $0.01 per prompt as a reasonable estimate for GPT-4o
+	avgCostPerPrompt := 0.01
+	if model == "gpt-3.5-turbo" {
+		avgCostPerPrompt = 0.002
+	}
+	remainingPrompts := int(remainingBudget / avgCostPerPrompt)
+
+	response := BudgetResponse{
+		TotalBudget:      totalBudget,
+		SpentToday:       spentToday,
+		RemainingBudget:  remainingBudget,
+		RemainingPrompts: remainingPrompts,
+		CostUnit:         "TOKEN", // Default to TOKEN for most models
+		Model:            model,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

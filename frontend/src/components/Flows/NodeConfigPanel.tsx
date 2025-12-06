@@ -194,12 +194,24 @@ const NodeConfigPanel: React.FC<Props> = ({ node, onSave, onClose }) => {
                         
                         <p className="text-slate-300 mb-4">
                             This LLM node will consume tokens from your premium budget when executed.
+                            Please confirm you want to proceed with this cost.
                         </p>
                         
-                        <div className="bg-slate-900 rounded p-3 mb-4">
-                            <div className="flex justify-between text-sm mb-1">
+                        <div className="bg-slate-900 rounded p-3 mb-4 space-y-2">
+                            <div className="flex justify-between text-sm">
                                 <span className="text-slate-400">Estimated tokens:</span>
-                                <span className="text-purple-400 font-mono">{estimatedTokens}</span>
+                                <span className="text-purple-400 font-mono" data-testid="estimated-tokens">{estimatedTokens.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-400">Estimated cost:</span>
+                                <span className="text-green-400 font-mono" data-testid="estimated-cost">
+                                    ${((estimatedTokens / 1000) * 0.01).toFixed(4)}
+                                </span>
+                            </div>
+                            <div className="border-t border-slate-700 pt-2 mt-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-500">Rate: $0.01 / 1K tokens (GPT-4o estimate)</span>
+                                </div>
                             </div>
                         </div>
                         
