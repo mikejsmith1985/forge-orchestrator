@@ -1,0 +1,105 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - heading "Forge Orchestrator" [level=1] [ref=e7]
+    - navigation [ref=e8]:
+      - button "Terminal" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+        - generic [ref=e13]: Terminal
+      - button "Architect" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - generic [ref=e27]: Architect
+      - button "Dashboard" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+        - generic [ref=e34]: Dashboard
+      - button "Commands" [ref=e35] [cursor=pointer]:
+        - img [ref=e36]
+        - generic [ref=e41]: Commands
+      - button "Flows" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - generic [ref=e47]: Flows
+      - button "Settings" [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - generic [ref=e53]:
+      - button "Send Feedback" [active] [ref=e54] [cursor=pointer]:
+        - img [ref=e55]
+        - text: Send Feedback
+      - button "Update Available" [ref=e57] [cursor=pointer]:
+        - img [ref=e58]
+        - text: Update Available
+      - generic [ref=e61]:
+        - generic [ref=e62]: Online
+        - generic "Click to check for updates" [ref=e64] [cursor=pointer]: v1.2.0
+  - main [ref=e65]:
+    - generic [ref=e67]:
+      - generic [ref=e68]:
+        - generic [ref=e74]: Terminal
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - button "Decrease font size" [ref=e78] [cursor=pointer]:
+              - img [ref=e79]
+            - generic [ref=e80]: 14px
+            - button "Increase font size" [ref=e81] [cursor=pointer]:
+              - img [ref=e82]
+          - button "Auto-Respond" [ref=e83] [cursor=pointer]:
+            - img [ref=e84]
+            - generic [ref=e89]: Auto-Respond
+      - generic [ref=e93]:
+        - textbox "Terminal input" [ref=e94]
+        - generic [ref=e95]:
+          - generic [ref=e97]:
+            - generic [ref=e98]: "[Forge Terminal]"
+            - generic [ref=e99]: Connected.
+          - generic [ref=e101]:
+            - generic [ref=e102]: ✓
+            - generic [ref=e103]: Connected to terminal
+            - generic [ref=e104]: "(Shell: wsl)"
+          - generic [ref=e106]: mikej@MikesDell:~/projects/forge-orchestrator$
+  - generic [ref=e146]:
+    - img [ref=e147]
+    - generic [ref=e150]:
+      - paragraph [ref=e151]: "Update available: v1.2.2"
+      - paragraph [ref=e152]: A new version is ready to install.
+      - generic [ref=e153]:
+        - button "View Update" [ref=e154] [cursor=pointer]
+        - button "Later" [ref=e155] [cursor=pointer]:
+          - img [ref=e156]
+          - text: Later
+    - button [ref=e159] [cursor=pointer]:
+      - img [ref=e160]
+  - generic [ref=e164]:
+    - generic [ref=e165]:
+      - heading "Send Feedback" [level=2] [ref=e166]:
+        - img [ref=e167]
+        - text: Send Feedback
+      - button "Close" [ref=e171] [cursor=pointer]:
+        - img [ref=e172]
+    - generic [ref=e176]:
+      - generic [ref=e177]:
+        - heading "Setup Required" [level=3] [ref=e178]:
+          - img [ref=e179]
+          - text: Setup Required
+        - paragraph [ref=e182]: To submit feedback directly to GitHub, you need a Personal Access Token (PAT).
+        - generic [ref=e183]:
+          - paragraph [ref=e184]: "A PAT allows this app to:"
+          - list [ref=e185]:
+            - listitem [ref=e186]: Create issues in the forge-orchestrator repository
+            - listitem [ref=e187]: Upload screenshots to help developers debug
+      - generic [ref=e188]:
+        - generic [ref=e189]: GitHub Personal Access Token (Required)
+        - generic [ref=e190]:
+          - paragraph [ref=e191]: "Click the button below to generate a token with the correct permissions:"
+          - link "Generate Token on GitHub" [ref=e192] [cursor=pointer]:
+            - /url: https://github.com/settings/tokens/new?scopes=public_repo&description=Forge+Orchestrator+Feedback
+            - img [ref=e193]
+            - text: Generate Token on GitHub
+            - img [ref=e196]
+          - paragraph [ref=e200]:
+            - text: "Scope needed:"
+            - code [ref=e201]: public_repo
+        - textbox "ghp_xxxxxxxxxxxx" [ref=e202]
+      - button "Save Settings" [ref=e204] [cursor=pointer]
+```

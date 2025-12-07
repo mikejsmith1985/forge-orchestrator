@@ -15,7 +15,7 @@ import (
 )
 
 // Version is set at build time via -ldflags "-X github.com/mikejsmith1985/forge-orchestrator/internal/updater.Version=x.y.z"
-var Version = "1.2.0"
+var Version = "1.2.3"
 
 // GitHub repository information
 const (

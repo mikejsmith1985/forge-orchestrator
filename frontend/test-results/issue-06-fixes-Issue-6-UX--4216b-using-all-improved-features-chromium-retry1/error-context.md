@@ -1,0 +1,80 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - heading "Forge Orchestrator" [level=1] [ref=e7]
+    - navigation [ref=e8]:
+      - button "Terminal" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+        - generic [ref=e13]: Terminal
+      - button "Architect" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - generic [ref=e27]: Architect
+      - button "Dashboard" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+        - generic [ref=e34]: Dashboard
+      - button "Commands" [ref=e35] [cursor=pointer]:
+        - img [ref=e36]
+        - generic [ref=e41]: Commands
+      - button "Flows" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - generic [ref=e47]: Flows
+      - button "Settings" [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - generic [ref=e53]:
+      - button "Send Feedback" [ref=e54] [cursor=pointer]:
+        - img [ref=e55]
+        - text: Send Feedback
+      - button "Update Available" [ref=e57] [cursor=pointer]:
+        - img [ref=e58]
+        - text: Update Available
+      - generic [ref=e61]:
+        - generic [ref=e62]: Online
+        - generic "Click to check for updates" [ref=e64] [cursor=pointer]: v1.2.0
+  - main [ref=e65]:
+    - generic [ref=e67]:
+      - generic [ref=e69]:
+        - button "Terminal" [ref=e70] [cursor=pointer]:
+          - img [ref=e71]
+          - generic [ref=e73]: Terminal
+        - button "API Keys" [ref=e74] [cursor=pointer]:
+          - img [ref=e75]
+          - generic [ref=e79]: API Keys
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - img [ref=e83]
+          - heading "Terminal Settings" [level=1] [ref=e85]
+        - generic [ref=e86]:
+          - heading "Shell Type" [level=2] [ref=e87]:
+            - img [ref=e88]
+            - text: Shell Type
+          - paragraph [ref=e91]: Select your preferred terminal shell. The terminal will restart with the new shell on next connection.
+          - generic [ref=e93] [cursor=pointer]:
+            - radio "Bash Standard Unix/Linux shell" [ref=e94]
+            - generic [ref=e95]:
+              - generic [ref=e96]: Bash
+              - generic [ref=e97]: Standard Unix/Linux shell
+        - generic [ref=e98]:
+          - heading "Troubleshooting" [level=3] [ref=e99]:
+            - img [ref=e100]
+            - text: Troubleshooting
+          - list [ref=e102]:
+            - listitem [ref=e103]: • If terminal fails to connect, try changing the shell type
+            - listitem [ref=e104]: • Check browser console (F12) for detailed error messages
+            - listitem [ref=e105]: • Terminal will automatically reconnect after changing settings
+        - button "Save Configuration" [ref=e108] [cursor=pointer]
+  - generic [ref=e111]:
+    - img [ref=e112]
+    - generic [ref=e115]:
+      - paragraph [ref=e116]: "Update available: v1.2.2"
+      - paragraph [ref=e117]: A new version is ready to install.
+      - generic [ref=e118]:
+        - button "View Update" [ref=e119] [cursor=pointer]
+        - button "Later" [ref=e120] [cursor=pointer]:
+          - img [ref=e121]
+          - text: Later
+    - button [ref=e124] [cursor=pointer]:
+      - img [ref=e125]
+```
